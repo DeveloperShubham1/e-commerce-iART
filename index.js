@@ -1,0 +1,60 @@
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import connectDB from "./configs/db.js";
+import userRouter from "./routes/userRoute.js";
+import cartRouter from "./routes/cartRoute.js";
+import "dotenv/config";
+import addressRouter from "./routes/addressRoute.js";
+import merchantRoutes from "./routes/merchantRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import productRoutes from "./routes/productRoute.js";
+import orderRoutes from "./routes/orderRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js";
+import s3Routes from "./routes/s3Routes.js";
+import guestRouter from "./routes/GuestCartRoute.js";
+import subCategoryRoutes from "./routes/subCategoryRoutes.js";
+import instagramRouter from "./routes/instagramRoute.js";
+const app = express();
+const port = process.env.PORT || 4000;
+
+await connectDB();
+
+app.use(express.json({ limit: "100mb" }));
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      callback(null, true); // allow EVERY domain
+    },
+    credentials: true,
+  }),
+);
+
+app.get("/", (req, res) => {
+  res.send("🛍️ eCommerce API is Running Smoothly");
+});
+
+app.use("/api/merchant", merchantRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/s3", s3Routes);
+app.use("/api/subcategories", subCategoryRoutes);
+app.use("/api/user", userRouter);
+app.use("/api/address", addressRouter);
+app.use("/api/cart", cartRouter);
+app.use("/api/cart/guest", guestRouter);
+app.use("/api/ig", instagramRouter);
+
+// app.use((req, res) => {
+//   res.status(404).json({
+//     success: false,
+//     message: "Route not found",
+//   });
+// });
+
+app.listen(port, () => {
+  console.log(`Server is running at: http://localhost:${port}`);
+});
