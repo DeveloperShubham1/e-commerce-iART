@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { Route, Routes } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -29,6 +30,9 @@ import { ToastContainer } from "react-toastify";
 import { useAppContext } from "./context/AppContext";
 import Loader from "./components/Loader";
 import ReportPage from "./components/merchant/ReportPage";
+import Instagramproductspage from "./pages/merchant/Instagramproductspage";
+import Profile from "./pages/merchant/Profile";
+
 
 const BUILD_TYPE = import.meta.env.VITE_BUILD_TYPE; // user | merchant
 
@@ -49,6 +53,19 @@ const hexToRgba = (hex, alpha = 0.1) => {
 
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      refetchOnMount: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => {
   const { showUserLogin, isMerchant, authLoading, settings } = useAppContext();
@@ -82,70 +99,77 @@ const App = () => {
   if (isMerchantBuild && authLoading) {
     return <Loader />;
   }
+
   return (
-    <div
-      className={`text-default min-h-screen text-gray-700 bg-[var(--color-primary-bg)]`}
-    >
-      {/* USER BUILD UI */}
-      {!isMerchantBuild && <Navbar />}
-      {!isMerchantBuild && showUserLogin && <Login />}
 
-      <Toaster />
-      <ToastContainer position="top-center" autoClose={3000} />
-
+    <QueryClientProvider client={queryClient}>
       <div
-        className={isMerchantBuild ? "" : "px-6 md:px-16 lg:px-24 xl:px-32 "}
+        className={`text-default min-h-screen text-gray-700 bg-[var(--color-primary-bg)]`}
       >
-        <Routes>
-          {/* ================= USER ROUTES ================= */}
-          {!isMerchantBuild && (
-            <>
-              <Route path="/" element={<Home />} />
-              <Route path="/products" element={<AllProducts />} />
-              <Route path="/products/:category" element={<ProductCategory />} />
+        {/* USER BUILD UI */}
+        {!isMerchantBuild && <Navbar />}
+        {!isMerchantBuild && showUserLogin && <Login />}
 
-              <Route
-                path="/products/:category/:id"
-                element={<ProductDetails />}
-              />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/add-address" element={<AddAddress />} />
-              <Route path="/my-orders" element={<MyOrders />} />
-              <Route path="/loader" element={<Loading />} />
-              <Route path="/buy-now" element={<BuyNow />} />
-              <Route path="/login" element={<Login />} />
-            </>
-          )}
+        <Toaster />
+        <ToastContainer position="top-center" autoClose={3000} />
 
-          {/* ================= MERCHANT ROUTES ================= */}
-          {isMerchantBuild && (
-            <Route
-              path="/*"
-              element={isMerchant ? <SellerLayout /> : <SellerLogin />}
-            >
-              <Route
-                path="dashboard"
-                element={isMerchant ? <AddProduct /> : null}
-              />
-              <Route path="manage-categories" element={<CategoryManager />} />
-              <Route
-                path="manage-subcategories"
-                element={<SubcategoryManager />}
-              />
-              <Route path="product-list" element={<ProductList />} />
-              <Route path="orders" element={<Orders />} />
-              <Route path="settings" element={<MerchantSettingsPage />} />
-              <Route path="report" element={<ReportPage />} />
-            </Route>
-          )}
+        <div
+          className={isMerchantBuild ? "" : "px-6 md:px-16 lg:px-24 xl:px-32 "}
+        >
+          <Routes>
+            {/* ================= USER ROUTES ================= */}
+            {!isMerchantBuild && (
+              <>
+                <Route path="/" element={<Home />} />
+                <Route path="/products" element={<AllProducts />} />
+                <Route path="/products/:category" element={<ProductCategory />} />
 
-          {/* FALLBACK */}
-          <Route path="*" element={<Error404 />} />
-        </Routes>
+                <Route
+                  path="/products/:category/:id"
+                  element={<ProductDetails />}
+                />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/add-address" element={<AddAddress />} />
+                <Route path="/my-orders" element={<MyOrders />} />
+                <Route path="/loader" element={<Loading />} />
+                <Route path="/buy-now" element={<BuyNow />} />
+                <Route path="/login" element={<Login />} />
+
+              </>
+            )}
+
+            {/* ================= MERCHANT ROUTES ================= */}
+            {isMerchantBuild && (
+              <Route
+                path="/*"
+                element={isMerchant ? <SellerLayout /> : <SellerLogin />}
+              >
+                <Route
+                  path="dashboard"
+                  element={isMerchant ? <AddProduct /> : null}
+                />
+                <Route path="manage-categories" element={<CategoryManager />} />
+                <Route
+                  path="manage-subcategories"
+                  element={<SubcategoryManager />}
+                />
+                <Route path="product-list" element={<ProductList />} />
+                <Route path="orders" element={<Orders />} />
+                <Route path="settings" element={<MerchantSettingsPage />} />
+                <Route path="report" element={<ReportPage />} />
+                <Route path="instagram-products" element={<Instagramproductspage />} />
+                <Route path="profile" element={<Profile />} />
+              </Route>
+            )}
+
+            {/* FALLBACK */}
+            <Route path="*" element={<Error404 />} />
+          </Routes>
+        </div>
+
+        {!isMerchantBuild && <Footer />}
       </div>
-
-      {!isMerchantBuild && <Footer />}
-    </div>
+    </QueryClientProvider>
   );
 };
 

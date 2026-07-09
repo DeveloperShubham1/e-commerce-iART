@@ -25,11 +25,9 @@ const Login = () => {
         setUser(data?.user);
         setCartItems(data?.cartItems || []);
         setShowUserLogin(false);
-      } else {
-        toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response.data.message || "Something went wrong");
     }
   };
 
@@ -76,6 +74,8 @@ const Login = () => {
           <input
             onChange={(e) => setPassword(e.target.value)}
             value={password}
+            minLength={8}
+            maxLength={12}
             placeholder="type here"
             className="border border-gray-200 rounded w-full p-2 mt-1 outline-primary"
             type="password"

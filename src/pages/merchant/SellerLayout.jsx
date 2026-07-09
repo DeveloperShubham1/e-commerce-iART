@@ -3,6 +3,8 @@ import { assets } from "../../assets/assets";
 import { useAppContext } from "../../context/AppContext";
 import { toast } from "react-toastify";
 import reportIcon from "../../assets/reportIcon.svg";
+import instagram from "../../assets/instagram.svg";
+import userGear from "../../assets/user-gear.svg";
 
 const SellerLayout = () => {
   const { axios, navigate, setIsMerchant, merchantData } = useAppContext();
@@ -27,6 +29,8 @@ const SellerLayout = () => {
     },
     { name: "Settings", path: "/settings", icon: assets.order_icon },
     { name: "Report", path: "/report", icon: reportIcon },
+    { name: "Instagram Products", path: "/instagram-products", icon: instagram },
+    { name: "Profile", path: "/profile", icon: userGear },
   ];
 
   const logout = async () => {
@@ -46,7 +50,7 @@ const SellerLayout = () => {
   return (
     <>
       {/* ===== HEADER ===== */}
-      <div className="flex items-center justify-between px-4 md:px-8 border-b border-gray-300 py-3 bg-white sticky top-0 z-50">
+      <div className="sticky top-0 z-50 flex items-center justify-between h-16 px-4 md:px-8 border-b border-gray-300 bg-white">
         <Link to="/dashboard" className="font-semibold text-lg">
           Admin
         </Link>
@@ -63,27 +67,27 @@ const SellerLayout = () => {
       </div>
 
       {/* ===== BODY ===== */}
-      <div className="flex min-h-[calc(100vh-56px)]">
+      {/* ===== BODY ===== */}
+      <div className="flex h-[calc(100vh-64px)] overflow-hidden">
         {/* ===== SIDEBAR ===== */}
-        <aside className="w-16 md:w-59 border-r border-gray-300 pt-4 flex flex-col bg-white fixed md:static h-full">
+        <aside className="w-16 md:w-60 border-r border-gray-300 bg-white flex-shrink-0 overflow-y-auto">
           {sidebarLinks.map((item) => (
             <NavLink
-              to={item.path}
               key={item.name}
-              end={item.path === "/merchant"}
+              to={item.path}
+              end={item.path === "/dashboard"}
               className={({ isActive }) =>
                 `
-              flex flex-col md:flex-row items-center justify-center md:justify-start
-              gap-1 md:gap-3
-              py-3 px-2 md:px-5
-              text-sm md:text-base
-              transition-all duration-200
-              ${
-                isActive
-                  ? "bg-primary/10 text-primary md:border-r-4 border-primary"
+          flex flex-col md:flex-row items-center justify-center md:justify-start
+          gap-1 md:gap-3
+          py-3 px-2 md:px-5
+          text-sm md:text-base
+          transition-all duration-200
+          ${isActive
+                  ? "bg-primary/10 text-primary border-r-4 border-primary"
                   : "text-gray-600 hover:bg-gray-100"
-              }
-              `
+                }
+        `
               }
             >
               <img
@@ -92,10 +96,8 @@ const SellerLayout = () => {
                 className="w-6 h-6 md:w-7 md:h-7"
               />
 
-              {/* Text (Desktop only) */}
-              <p className="hidden md:block whitespace-nowrap ">{item.name}</p>
+              <p className="hidden md:block whitespace-nowrap">{item.name}</p>
 
-              {/* Label (Mobile only) */}
               <span className="md:hidden text-[10px] text-gray-500 text-center">
                 {item.name}
               </span>
@@ -104,7 +106,7 @@ const SellerLayout = () => {
         </aside>
 
         {/* ===== MAIN CONTENT ===== */}
-        <main className="flex-1 ml-16 md:ml-0 p-4 md:p-6 bg-gray-50">
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
           <Outlet />
         </main>
       </div>
@@ -113,3 +115,5 @@ const SellerLayout = () => {
 };
 
 export default SellerLayout;
+
+
