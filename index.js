@@ -14,11 +14,18 @@ import reviewRoutes from "./routes/reviewRoutes.js";
 import s3Routes from "./routes/s3Routes.js";
 import guestRouter from "./routes/GuestCartRoute.js";
 import subCategoryRoutes from "./routes/subCategoryRoutes.js";
+import webhookRoutes from "./routes/webhookRoutes.js";
+import adminRoutes from "./routes/instaProductRoutes.js";
 import instagramRouter from "./routes/instagramRoute.js";
+
 const app = express();
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 5000;
 
 await connectDB();
+
+await import("./script/TokenRefresh.js");
+
+app.use("/", webhookRoutes);
 
 app.use(express.json({ limit: "100mb" }));
 app.use(cookieParser());
@@ -47,13 +54,16 @@ app.use("/api/address", addressRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/cart/guest", guestRouter);
 app.use("/api/ig", instagramRouter);
+app.use("/api", adminRoutes);
 
-// app.use((req, res) => {
-//   res.status(404).json({
-//     success: false,
-//     message: "Route not found",
-//   });
-// });
+app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
+});
 
 app.listen(port, () => {
   console.log(`Server is running at: http://localhost:${port}`);

@@ -5,6 +5,8 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    instagramId: { type: String, unique: true, sparse: true },
+    isGuest: { type: Boolean, default: false },
     cartItems: [
       {
         productId: {
@@ -41,7 +43,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
   },
-  { minimize: false }
+  { minimize: false },
 );
 
 const User = mongoose.models.user || mongoose.model("user", userSchema);

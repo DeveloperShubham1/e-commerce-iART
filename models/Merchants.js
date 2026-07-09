@@ -11,23 +11,55 @@ const MerchantSchema = new mongoose.Schema({
   razorpayKey: { type: String },
   razorpaySecret: { type: String },
 
-  // 🔐 Subscription & Features
-  isSubscribed: {
-    type: Boolean,
-    default: false,
-  },
-
+  isSubscribed: { type: Boolean, default: false },
   features: {
-    stockManagement: {
-      type: Boolean,
-      default: false,
-    },
+    stockManagement: { type: Boolean, default: false },
   },
-
   subscription: {
-    planName: { type: String }, // basic / pro / premium
+    planName: { type: String },
     startDate: { type: Date },
     endDate: { type: Date },
+  },
+
+  instagram: {
+    // ── Tokens ───────────────────────────────────────────────────
+    accessToken: { type: String, default: null }, // Facebook User token (~60 days)
+    pageAccessToken: { type: String, default: null }, // Facebook Page token
+
+    // ── App config ───────────────────────────────────────────────
+    appId: { type: String, default: null }, // Meta App ID  e.g. 1488658929655138
+    appSecret: { type: String, default: null }, // Meta App Secret (X-Hub-Signature-256)
+    verifyToken: { type: String, default: null }, // Webhook verify token
+    graphApiVersion: { type: String, default: "v25.0" },
+    InstagramAppSecret: { type: String, default: null },
+
+    // ── Account IDs — auto-extracted from granular_scopes ────────
+    // These are populated automatically when verifyToken is called,
+    // parsed from the debug_token granular_scopes response.
+    // No manual entry needed.
+    igBusinessId: { type: String, default: null }, // from instagram_basic.target_ids[0]
+    pageId: { type: String, default: null }, // from pages_show_list.target_ids[0]
+    businessManagerId: { type: String, default: null }, // from business_management.target_ids[0]
+
+    // ── Granted scopes — stored for reference / UI display ───────
+    // Flat list of scope names e.g. ["instagram_manage_comments", ...]
+    grantedScopes: { type: [String], default: [] },
+
+    // Structured: scope name → target_ids array
+    // Stored as Mixed so we can keep the exact shape Meta returns.
+    // e.g. { instagram_basic: ["17841444067130098"], pages_show_list: ["1114357148435095"] }
+    granularScopes: { type: mongoose.Schema.Types.Mixed, default: {} },
+
+    // ── Site ─────────────────────────────────────────────────────
+    siteBaseUrl: { type: String, default: null },
+
+    // ── Token validity ───────────────────────────────────────────
+    tokenExpiresAt: { type: Date, default: null },
+    isConnected: { type: Boolean, default: false },
+
+    // ── Webhook subscription ─────────────────────────────────────
+    webhookSubscribed: { type: Boolean, default: false },
+    webhookSubscribedAt: { type: Date, default: null },
   },
 
   logo: { type: String },

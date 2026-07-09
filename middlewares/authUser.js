@@ -15,6 +15,11 @@ const authUser = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(userToken, process.env.JWT_SECRET);
 
+    if (decoded.guest) {
+      req.guest = { igsid: decoded.igsid, username: decoded.username };
+      return next();
+    }
+
     // Fetch user using decoded.userId
     const user = await User.findById(decoded.userId).select("-password");
 

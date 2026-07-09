@@ -1,26 +1,21 @@
-const {
-  fetchMediaDetails,
-  fetchAllComments,
-  fetchAllInstagramMessages,
-} = require("../controllers/instagramApi");
 import express from "express";
+
+import {
+  getPosts,
+  getComments,
+  getMessages,
+  getPostById,
+} from "../controllers/instagramController.js";
+import authMerchant from "../middlewares/merchantAuth.js";
 
 const instagramRouter = express.Router();
 
-instagramRouter.get("/posts", async (req, res) => {
-  const posts = await fetchMediaDetails();
-  res.json(posts);
-});
+instagramRouter.get("/posts", authMerchant, getPosts);
 
-instagramRouter.get("/comments", async (req, res) => {
-  const posts = await fetchMediaDetails();
-  const comments = await fetchAllComments(posts);
-  res.json(comments);
-});
+instagramRouter.get("/comments", authMerchant, getComments);
 
-instagramRouter.get("/messages", async (req, res) => {
-  const messages = await fetchAllInstagramMessages();
-  res.json(messages);
-});
+instagramRouter.get("/messages", authMerchant, getMessages);
+
+instagramRouter.get("/post/:id", authMerchant, getPostById);
 
 export default instagramRouter;

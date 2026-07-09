@@ -1,25 +1,43 @@
-const path = require("path");
-require("dotenv").config({
-  path: path.join(__dirname, ".env"),
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({
+  path: path.join(__dirname, "../.env"),
 });
 
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+export const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+export const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+export const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
-
-const SECRET_KEY =
+export const SECRET_KEY =
   process.env.SECRET_KEY || "dev-secret-key-change-me";
 
-const GRAPH_API_VERSION =
+// Meta App Secret - used to verify X-Hub-Signature-256 on incoming webhooks.
+// This is a different value from SECRET_KEY (your own app's secret),
+// so it gets its own var rather than being folded into SECRET_KEY.
+export const APP_SECRET = process.env.APP_SECRET;
+
+export const GRAPH_API_VERSION =
   process.env.GRAPH_API_VERSION || "v25.0";
 
-const BASE_URL = `https://graph.instagram.com/${GRAPH_API_VERSION}`;
-const FACEBOOK_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+export const BASE_URL = `https://graph.instagram.com/${GRAPH_API_VERSION}`;
+export const FACEBOOK_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
-function validateConfig() {
+export const PAGE_ID = process.env.PAGE_ID;
+export const IG_BUSINESS_ID = process.env.IG_BUSINESS_ID;
+
+export const MONGO_URI =
+  process.env.MONGO_URI || "mongodb://localhost:27017/ig_product_bot";
+export const PORT = process.env.PORT || 4000;
+
+export const SITE_BASE_URL =
+  process.env.SITE_BASE_URL || "https://example.com";
+
+export function validateConfig() {
   if (!ACCESS_TOKEN) {
     console.log("Missing ACCESS_TOKEN in .env");
     return false;
@@ -33,33 +51,18 @@ function validateConfig() {
   return true;
 }
 
-function validateWebhookConfig() {
+export function validateWebhookConfig() {
   const missing = [];
 
   if (!VERIFY_TOKEN) missing.push("VERIFY_TOKEN");
   if (!PAGE_ACCESS_TOKEN) missing.push("PAGE_ACCESS_TOKEN");
   if (!ACCESS_TOKEN) missing.push("ACCESS_TOKEN");
+  if (!APP_SECRET) missing.push("APP_SECRET");
 
   if (missing.length) {
-    console.log(
-      `Missing webhook config values: ${missing.join(", ")}`
-    );
+    console.log(`Missing webhook config values: ${missing.join(", ")}`);
     return false;
   }
 
   return true;
 }
-
-module.exports = {
-  ACCESS_TOKEN,
-  PAGE_ACCESS_TOKEN,
-  VERIFY_TOKEN,
-  ADMIN_USERNAME,
-  ADMIN_PASSWORD,
-  SECRET_KEY,
-  GRAPH_API_VERSION,
-  BASE_URL,
-  FACEBOOK_BASE_URL,
-  validateConfig,
-  validateWebhookConfig,
-};

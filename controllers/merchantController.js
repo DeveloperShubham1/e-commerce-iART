@@ -1,10 +1,12 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import Merchants from "../models/Merchants.js";
+import Merchant from "../models/Merchants.js";
 import MerchantWebsiteSettings from "../models/MerchantSettings.js";
 import multer from "multer";
 import multerS3 from "multer-s3";
 import s3 from "../configs/s3.js"; // your S3 instance
+import axios from "axios";
+import { maskToken, maskInstagram } from "../utils/helper.js";
 
 export const registerMerchant = async (req, res) => {
   try {
@@ -34,7 +36,7 @@ export const registerMerchant = async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Check if merchant already exists
-    const existingMerchant = await Merchants.findOne({
+    const existingMerchant = await Merchant.findOne({
       $or: [{ email: normalizedEmail }, { phone }],
     });
 
@@ -50,7 +52,7 @@ export const registerMerchant = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create merchant
-    const newMerchant = new Merchants({
+    const newMerchant = new Merchant({
       MerchantName,
       OwnerName,
       phone,
@@ -70,7 +72,7 @@ export const registerMerchant = async (req, res) => {
     const token = jwt.sign(
       { merchantId: newMerchant._id, email: newMerchant.email },
       process.env.JWT_SECRET,
-      { expiresIn: "5d" }
+      { expiresIn: "5d" },
     );
 
     // Set cookie
@@ -115,7 +117,7 @@ export const merchantLogin = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const merchant = await Merchants.findOne({ email: normalizedEmail });
+    const merchant = await Merchant.findOne({ email: normalizedEmail });
     if (!merchant) {
       return res.status(404).json({
         success: false,
@@ -133,7 +135,7 @@ export const merchantLogin = async (req, res) => {
     const token = jwt.sign(
       { merchantId: merchant._id, email: merchant.email },
       process.env.JWT_SECRET,
-      { expiresIn: "5d" }
+      { expiresIn: "5d" },
     );
 
     res.cookie("merchantToken", token, {
@@ -209,7 +211,7 @@ export const updateMerchantPassword = async (req, res) => {
       });
     }
 
-    const merchant = await Merchants.findById(req.merchant._id);
+    const merchant = await Merchant.findById(req.merchant._id);
     if (!merchant) {
       return res
         .status(404)
@@ -282,10 +284,10 @@ export const updateMerchant = async (req, res) => {
     if (logo) updateFields.logo = logo;
     if (address) updateFields.address = address;
 
-    const merchant = await Merchants.findByIdAndUpdate(
+    const merchant = await Merchant.findByIdAndUpdate(
       merchantId,
       { $set: updateFields },
-      { new: true }
+      { new: true },
     );
 
     if (!merchant) {
@@ -310,7 +312,6 @@ export const updateMerchant = async (req, res) => {
 };
 
 // Merchant settings
-
 //  CREATE settings (only once per merchant)
 export const createMerchantSettings = async (req, res) => {
   try {
@@ -384,7 +385,7 @@ export const createMerchantSettings = async (req, res) => {
   }
 };
 
-// UPDATE API
+// UPDATE API for settings
 export const updateMerchantSettings = async (req, res) => {
   try {
     const merchantId = req.merchant._id;
@@ -474,7 +475,7 @@ export const updateMerchantSettings = async (req, res) => {
   }
 };
 
-// get API
+// get API for settings
 export const getMerchantSettings = async (req, res) => {
   try {
     let merchantId;
@@ -512,3 +513,499 @@ export const getMerchantSettings = async (req, res) => {
     });
   }
 };
+
+// GET /api/merchant/:merchantId/instagram
+export async function getInstagramConfig(req, res) {
+  let merchantId = req.merchant._id;
+
+  console.log("Fetching Instagram config for merchantId:", merchantId);
+  try {
+    const merchant = await Merchant.findById(merchantId).select(
+      "MerchantName instagram",
+    );
+
+    if (!merchant) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Merchant not found" });
+    }
+
+    const ig = merchant.instagram?.toObject() || {};
+    // if (ig.accessToken) ig.accessToken = maskToken(ig.accessToken);
+    // if (ig.pageAccessToken) ig.pageAccessToken = maskToken(ig.pageAccessToken);
+    // if (ig.appSecret) ig.appSecret = maskToken(ig.appSecret);
+
+    return res.json({ success: true, instagram: ig });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+// PUT /api/merchant/:merchantId/instagram
+export async function updateInstagramConfig(req, res) {
+  try {
+    const {
+      accessToken,
+      pageAccessToken,
+      igBusinessId,
+      pageId,
+      appSecret,
+      verifyToken,
+      graphApiVersion,
+      siteBaseUrl,
+      appId,
+      InstagramAppSecret,
+    } = req.body;
+
+    let merchantId = req.merchant._id;
+
+    const update = {};
+    if (accessToken !== undefined)
+      update["instagram.accessToken"] = accessToken.trim();
+    if (pageAccessToken !== undefined)
+      update["instagram.pageAccessToken"] = pageAccessToken.trim();
+    if (igBusinessId !== undefined)
+      update["instagram.igBusinessId"] = igBusinessId.trim();
+    if (pageId !== undefined) update["instagram.pageId"] = pageId.trim();
+    if (appSecret !== undefined)
+      update["instagram.appSecret"] = appSecret.trim();
+    if (verifyToken !== undefined)
+      update["instagram.verifyToken"] = verifyToken.trim();
+    if (graphApiVersion !== undefined)
+      update["instagram.graphApiVersion"] = graphApiVersion.trim();
+    if (siteBaseUrl !== undefined)
+      update["instagram.siteBaseUrl"] = siteBaseUrl.trim();
+    if (appId !== undefined) update["instagram.appId"] = appId.trim();
+    if (InstagramAppSecret !== undefined)
+      update["instagram.InstagramAppSecret"] = InstagramAppSecret.trim();
+
+    if (Object.keys(update).length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No fields provided to update" });
+    }
+
+    const merchant = await Merchant.findByIdAndUpdate(
+      merchantId,
+      { $set: update },
+      { new: true, runValidators: true },
+    ).select("MerchantName instagram");
+
+    if (!merchant) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Merchant not found" });
+    }
+
+    return res.json({
+      success: true,
+      message: "Instagram config updated",
+      // instagram: maskInstagram(merchant.instagram),
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+export async function verifyInstagramToken(req, res) {
+  let merchantId = req.merchant._id;
+  try {
+    const merchant = await Merchant.findById(merchantId);
+    if (!merchant) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Merchant not found" });
+    }
+
+    const token = merchant.instagram?.accessToken;
+    const appSecret = merchant.instagram?.appSecret;
+    const appId = merchant.instagram?.appId || process.env.APP_ID;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No accessToken saved. Save it first via PUT /:merchantId/instagram",
+      });
+    }
+    if (!appSecret) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No appSecret saved. Save it first via PUT /:merchantId/instagram",
+      });
+    }
+    if (!appId) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "APP_ID missing — save it via PUT /:merchantId/instagram or set APP_ID in .env",
+      });
+    }
+
+    // App Access Token = APP_ID|APP_SECRET
+    // This authenticates the debug_token request itself (not the token being inspected).
+    const appAccessToken = `${appId}|${appSecret}`;
+
+    const debugRes = await axios.get("https://graph.facebook.com/debug_token", {
+      params: {
+        input_token: token,
+        access_token: appAccessToken,
+      },
+      timeout: 15000,
+    });
+
+    const data = debugRes.data?.data;
+
+    // ── Invalid / expired ─────────────────────────────────────────
+    if (!data?.is_valid) {
+      await Merchant.findByIdAndUpdate(merchantId, {
+        $set: { "instagram.isConnected": false },
+      });
+      return res.status(400).json({
+        success: false,
+        message:
+          "Token is invalid or expired. Please reconnect your Instagram account.",
+        is_valid: false,
+        error_code: data?.error?.code,
+        error_message: data?.error?.message,
+      });
+    }
+
+    // ── Parse granular_scopes ─────────────────────────────────────
+    // granular_scopes is an array like:
+    // [ { scope: "instagram_basic", target_ids: ["17841444067130098"] }, ... ]
+    // We extract the key account IDs automatically so merchants
+    // never have to look them up and type them manually.
+    const granularScopes = data.granular_scopes || [];
+    const grantedScopes = data.scopes || [];
+
+    // Build a flat map:  scope_name → target_ids[]
+    const scopeMap = {};
+    granularScopes.forEach(({ scope, target_ids }) => {
+      scopeMap[scope] = target_ids || [];
+    });
+
+    // Extract the three key IDs from the scope map
+    const igBusinessId = scopeMap["instagram_basic"]?.[0] || null;
+    const pageId = scopeMap["pages_show_list"]?.[0] || null;
+    const businessManagerId = scopeMap["business_management"]?.[0] || null;
+
+    // ── Build update ──────────────────────────────────────────────
+    const update = {
+      "instagram.isConnected": true,
+      "instagram.tokenExpiresAt": data.data_access_expires_at
+        ? new Date(data.data_access_expires_at * 1000)
+        : null,
+
+      // Auto-save extracted IDs (only overwrite if we got a value)
+      ...(igBusinessId && { "instagram.igBusinessId": igBusinessId }),
+      ...(pageId && { "instagram.pageId": pageId }),
+      ...(businessManagerId && {
+        "instagram.businessManagerId": businessManagerId,
+      }),
+
+      // Store scopes for UI display / permission checks
+      "instagram.grantedScopes": grantedScopes,
+      "instagram.granularScopes": scopeMap,
+    };
+
+    await Merchant.findByIdAndUpdate(merchantId, { $set: update });
+
+    // ── Response ──────────────────────────────────────────────────
+    return res.json({
+      success: true,
+      message: "Token is valid. Account IDs extracted and saved automatically.",
+      is_valid: true,
+
+      // Extracted IDs — shown so admin can confirm they're correct
+      // extracted: {
+      //   igBusinessId,
+      //   pageId,
+      //   businessManagerId,
+      // },
+
+      // Token info
+      // app_id: data.app_id,
+       expires_at: data.data_access_expires_at ? new Date(data.data_access_expires_at * 1000) : null,
+      //   scopes: grantedScopes,
+
+      // Full scope map for reference
+      // granularScopes: scopeMap,
+    });
+  } catch (err) {
+    const metaError = err?.response?.data?.error;
+    return res.status(500).json({
+      success: false,
+      message: metaError?.message || err.message,
+      error_type: metaError?.type,
+      error_code: metaError?.code,
+    });
+  }
+}
+
+//  POST /api/merchant/:merchantId/instagram/subscribe-webhook
+export async function subscribeWebhook(req, res) {
+  try {
+    const merchantId = req.merchant._id;
+
+    const merchant = await Merchant.findById(merchantId);
+    if (!merchant) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Merchant not found" });
+    }
+
+    const {
+      pageAccessToken,
+      igBusinessId,
+      graphApiVersion = "v25.0",
+    } = merchant.instagram || {};
+
+    if (!pageAccessToken) {
+      return res.status(400).json({
+        success: false,
+        message: "pageAccessToken is missing. Save it first via PUT /instagram",
+      });
+    }
+
+    if (!igBusinessId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "igBusinessId is missing. Call POST /instagram/verify-token first to extract it automatically",
+      });
+    }
+
+    // ✅ graph.instagram.com — correct host for Instagram Login (instagram_basic scopes)
+    // graph.facebook.com would return code 3 "Application does not have the capability"
+    // because this token is scoped to Instagram, not a Facebook Page.
+    const subscribeRes = await axios.post(
+      `https://graph.instagram.com/${graphApiVersion}/${igBusinessId}/subscribed_apps`,
+      null,
+      {
+        params: {
+          access_token: pageAccessToken,
+          subscribed_fields: "comments",
+        },
+        timeout: 15000,
+      },
+    );
+
+    if (subscribeRes.data?.success) {
+      // Save subscription state so dashboard can show connected status
+      await Merchant.findByIdAndUpdate(merchantId, {
+        $set: {
+          "instagram.webhookSubscribed": true,
+          "instagram.webhookSubscribedAt": new Date(),
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: "Webhook subscription activated for comments",
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: "Meta returned success: false",
+      meta_response: subscribeRes.data,
+    });
+  } catch (err) {
+    console.error("subscribeWebhook error:", err.response?.data || err.message);
+    return res.status(500).json({
+      success: false,
+      message: err.response?.data?.error?.message || err.message,
+      meta_error: err.response?.data || null,
+    });
+  }
+}
+
+// GET /api/merchant/:merchantId/instagram/subscription-status
+export async function getSubscriptionStatus(req, res) {
+  try {
+    const merchantId = req.merchant._id;
+
+    const merchant = await Merchant.findById(merchantId);
+    if (!merchant) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Merchant not found" });
+    }
+
+    const {
+      pageAccessToken,
+      igBusinessId,
+      graphApiVersion = "v25.0",
+    } = merchant.instagram || {};
+
+    if (!pageAccessToken || !igBusinessId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "pageAccessToken and igBusinessId are required. Call verify-token first.",
+      });
+    }
+
+    // ✅ graph.instagram.com — same host as subscribe call
+    const response = await axios.get(
+      `https://graph.instagram.com/${graphApiVersion}/${igBusinessId}/subscribed_apps`,
+      {
+        params: { access_token: pageAccessToken },
+        timeout: 15000,
+      },
+    );
+
+    const subscriptions = response.data?.data || [];
+    const isSubscribed = subscriptions.some((s) =>
+      s.subscribed_fields?.includes("comments"),
+    );
+
+    // Sync DB state if it's out of sync with Meta's actual state
+    if (isSubscribed !== merchant.instagram.webhookSubscribed) {
+      await Merchant.findByIdAndUpdate(merchantId, {
+        $set: { "instagram.webhookSubscribed": isSubscribed },
+      });
+    }
+
+    return res.json({
+      success: true,
+      subscribed: isSubscribed,
+      subscriptions,
+    });
+  } catch (err) {
+    console.error(
+      "getSubscriptionStatus error:",
+      err.response?.data || err.message,
+    );
+    return res.status(500).json({
+      success: false,
+      message: err.response?.data?.error?.message || err.message,
+      meta_error: err.response?.data || null,
+    });
+  }
+}
+
+// DELETE /api/merchant/:merchantId/instagram
+export async function disconnectInstagram(req, res) {
+  let merchantId = req.merchant._id;
+  try {
+    const merchant = await Merchant.findByIdAndUpdate(
+      merchantId,
+      {
+        $set: {
+          instagram: {
+            accessToken: null,
+            pageAccessToken: null,
+            igBusinessId: null,
+            pageId: null,
+            appSecret: null,
+            verifyToken: null,
+            graphApiVersion: "v25.0",
+            siteBaseUrl: null,
+            tokenExpiresAt: null,
+            isConnected: false,
+            webhookSubscribed: false,
+            webhookSubscribedAt: null,
+          },
+        },
+      },
+      { new: true },
+    ).select("MerchantName instagram");
+
+    if (!merchant) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Merchant not found" });
+    }
+
+    return res.json({
+      success: true,
+      message: "Instagram integration disconnected",
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+//Auto-refresh endpoint
+export async function refreshInstagramToken(req, res) {
+  let merchantId = req.merchant._id;
+  try {
+    const merchant = await Merchant.findById(merchantId);
+    if (!merchant) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Merchant not found" });
+    }
+
+    const currentToken = merchant.instagram?.accessToken;
+    if (!currentToken) {
+      return res.status(400).json({
+        success: false,
+        message: "No accessToken saved. Nothing to refresh.",
+      });
+    }
+
+    const appId = merchant.instagram?.appId;
+    const appSecret = merchant.instagram?.appSecret;
+
+    if (!appId || !appSecret) {
+      return res.status(500).json({
+        success: false,
+        message: "APP_ID or APP_SECRET missing from server config",
+      });
+    }
+
+    const refreshRes = await axios.get(
+      "https://graph.facebook.com/v25.0/oauth/access_token",
+      {
+        params: {
+          grant_type: "fb_exchange_token",
+          client_id: appId,
+          client_secret: appSecret,
+          fb_exchange_token: currentToken,
+        },
+        timeout: 15000,
+      },
+    );
+
+    const { access_token, expires_in, token_type } = refreshRes.data;
+
+    if (!access_token) {
+      return res.status(400).json({
+        success: false,
+        message: "Meta did not return a new token",
+        meta_response: refreshRes.data,
+      });
+    }
+
+    // If Meta doesn't return expires_in, assume 60 days (standard long-lived token lifetime)
+    const expirySeconds = expires_in || 60 * 24 * 60 * 60;
+    const tokenExpiresAt = new Date(Date.now() + expirySeconds * 1000);
+
+    await Merchant.findByIdAndUpdate(merchantId, {
+      $set: {
+        "instagram.accessToken": access_token,
+        "instagram.tokenExpiresAt": tokenExpiresAt,
+        "instagram.isConnected": true,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: "Token refreshed successfully",
+      token_type,
+      expires_in_days: Math.floor(expirySeconds / 86400),
+      tokenExpiresAt,
+      // return raw so you can inspect if something looks wrong
+      // meta_response: refreshRes.data,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+      meta_error: err?.response?.data,
+    });
+  }
+}
