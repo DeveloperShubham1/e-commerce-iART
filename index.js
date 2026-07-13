@@ -17,9 +17,12 @@ import subCategoryRoutes from "./routes/subCategoryRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
 import adminRoutes from "./routes/instaProductRoutes.js";
 import instagramRouter from "./routes/instagramRoute.js";
+import morgan from "morgan";
 
 const app = express();
 const port = process.env.PORT || 5000;
+
+// app.use(morgan("common"));
 
 await connectDB();
 

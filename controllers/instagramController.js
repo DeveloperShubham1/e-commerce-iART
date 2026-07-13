@@ -4,7 +4,8 @@ import {
   fetchAllInstagramMessages,
   fetchMediaById,
 } from "../services/instagramApi.js";
-import { loadMerchantConfig } from "../configs/merchantConfigservice.js";
+import { loadMerchantConfig } from "../configs/merchantConfigService.js";
+
 
 export const getPosts = async (req, res) => {
   try {

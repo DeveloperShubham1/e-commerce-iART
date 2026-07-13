@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import IgAuthToken from "../models/IgAuthToken.js";
 
-const TTL_SECONDS = 15 * 60;
+const TTL_SECONDS = 60 * 60;
 
 export async function createIgAuthToken({ merchantId, igsid, username, commentId, productId }) {
   const jti = crypto.randomBytes(16).toString("hex");

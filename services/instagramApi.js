@@ -249,7 +249,7 @@ export async function fetchAllInstagramMessages(mc) {
 
 // ── Write endpoints ───────────────────────────────────────────────────────────
 
-const MOCK_MODE = process.env.IG_MOCK_MODE === "true";
+const MOCK_MODE = process.env.IG_MOCK_MODE === false;
 
 /**
  * Send PUBLIC comment reply.

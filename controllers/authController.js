@@ -23,10 +23,12 @@ export async function igExchange(req, res) {
     // No linked account yet — provision a shadow user so req.user._id
     // works everywhere downstream, exactly like a real logged-in user.
     const randomPassword = crypto.randomBytes(24).toString("hex");
+
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
     user = await User.create({
       name: payload.username || "Instagram User",
       email: `ig_${payload.igsid}@guest.local`,
-      password: randomPassword, // never used to log in directly; hash it if your schema expects hashed passwords elsewhere
+      password: hashedPassword, // never used to log in directly; hash it if your schema expects hashed passwords elsewhere
       instagramId: payload.igsid,
       isGuest: true,
     });

@@ -1,4 +1,4 @@
-import { loadMerchantConfig } from "../configs/merchantConfigservice.js";
+import { loadMerchantConfig } from "../configs/merchantConfigService.js";
 import InstagramProduct from "../models/InstagramProduct.js";
 import { fetchMediaById, fetchMediaComments } from "./instagramApi.js";
 

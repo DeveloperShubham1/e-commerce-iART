@@ -1,7 +1,7 @@
 import MessageLog from "../models/MessageLog.js";
 import { findProductByMediaId } from "./productService.js";
 import { replyToComment, sendInstagramDM } from "./instagramApi.js";
-import { loadMerchantConfig } from "../configs/merchantConfigservice.js";
+import { loadMerchantConfig } from "../configs/merchantConfigService.js";
 import { createIgAuthToken } from "./authTokenService.js";
 
 const SEND_DM = (process.env.SEND_DM ?? "true") === "true";
