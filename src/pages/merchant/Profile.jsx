@@ -3,13 +3,19 @@ import {
   useInstagramConfig,
   useUpdateInstagramConfig,
   useVerifyInstagramToken,
+  useConnectInstagramSDK
 } from "../../services/merchant";
+import { loadFacebookSDK } from "../../utils/facebook";
 
 export default function Profile() {
   const { data, isLoading } = useInstagramConfig();
   const updateMutation = useUpdateInstagramConfig();
   const verifyMutation = useVerifyInstagramToken();
+  const connectMutation = useConnectInstagramSDK();
   const instagram = data?.instagram;
+
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState(null);
 
   const [form, setForm] = useState({
     accessToken: "",
@@ -23,7 +29,7 @@ export default function Profile() {
     siteBaseUrl: "",
     InstagramAppSecret: "",
     whatsappPhoneNumberId: "",
-  });
+  });  
 
   useEffect(() => {
     if (data?.instagram) {
@@ -58,6 +64,52 @@ export default function Profile() {
 
   const handleVerifyToken = () => {
     verifyMutation.mutate();
+  };
+
+
+  const handleInstagramData = async () => {
+    setConnecting(true);
+    setConnectError(null);
+
+    try {
+      const FB = await loadFacebookSDK(instagram.appId);
+
+      FB.login(
+        (response) => {
+          console.log("Meta login response:", response);
+
+          if (response.status !== "connected") {
+            // user cancelled or didn't fully authorize
+            setConnectError("Facebook login was cancelled or not authorized.");
+            setConnecting(false);
+            return;
+          }
+
+          const { accessToken, userID } = response.authResponse;
+          console.log("User Access Token:", accessToken);
+          console.log("User ID:", userID);
+
+          // send to backend to exchange + store long-lived token
+          connectMutation.mutate(
+            { accessToken, userID },
+            {
+              onSuccess: () => setConnecting(false),
+              onError: (err) => {
+                setConnectError(err?.message || "Failed to connect Instagram");
+                setConnecting(false);
+              },
+            }
+          );
+        },
+        {
+          scope:
+            "instagram_basic,instagram_manage_messages,pages_show_list,pages_read_engagement,business_management",
+        }
+      );
+    } catch (err) {
+      setConnectError(err.message);
+      setConnecting(false);
+    }
   };
 
   if (isLoading) return <div>Loading...</div>;
@@ -132,6 +184,18 @@ export default function Profile() {
       <h2 className="mb-6 text-xl sm:text-2xl font-semibold">
         Instagram Configuration
       </h2>
+
+      <button
+        type="button"
+        onClick={handleInstagramData}
+        disabled={connecting}
+        className="rounded-xl bg-pink-600 text-white px-5 py-3 hover:bg-pink-700 disabled:opacity-60"
+      >
+        {connecting ? "Connecting..." : "Connect with Instagram"}
+      </button>
+      {connectError && (
+        <p className="mt-2 text-sm text-red-600">{connectError}</p>
+      )}
 
       <form
         onSubmit={handleSubmit}

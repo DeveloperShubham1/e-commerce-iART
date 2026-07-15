@@ -1,7 +1,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { getInstagramConfig, updateInstagramConfig, verifyInstagramToken, syncInstagramComments, syncInstagramAllComments } from "../api";
+import { getInstagramConfig, updateInstagramConfig, verifyInstagramToken, syncInstagramComments, syncInstagramAllComments, connectInstagramSDK } from "../api";
 
 
 export const useInstagramConfig = () =>
@@ -77,5 +77,14 @@ export const useSyncInstagramAllComments = () => {
                 err?.response?.data?.message || "Failed to sync comments"
             );
         },
+    });
+};
+
+export const useConnectInstagramSDK = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: connectInstagramSDK,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["instagram-config"] }),
+        onError: (err) => toast.error(err?.response?.data?.message || "Failed to connect Instagram"),
     });
 };
