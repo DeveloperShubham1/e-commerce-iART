@@ -91,8 +91,7 @@ export async function fetchAccountDetails(mc) {
 export async function fetchMediaInsights(mediaId, mc) {
   try {
     const response = await axios.get(
-      `https://graph.facebook.com/${
-        mc.graphApiVersion || GRAPH_API_VERSION
+      `https://graph.facebook.com/${mc.graphApiVersion || GRAPH_API_VERSION
       }/${mediaId}/insights`,
       {
         params: {
@@ -302,5 +301,26 @@ export async function sendInstagramDM(commentId, text, mc) {
         mc,
       ),
     { retries: 3, baseDelayMs: 800 },
+  );
+}
+
+
+export async function fetchFacebookPages(mc) {
+  const data = await makeFacebookGetRequest(
+    "/me/accounts",
+    {},
+    mc
+  );
+
+  return data?.data || [];
+}
+
+export async function fetchInstagramBusinessAccount(pageId, mc) {
+  return makeFacebookGetRequest(
+    `/${pageId}`,
+    {
+      fields: "instagram_business_account",
+    },
+    mc
   );
 }

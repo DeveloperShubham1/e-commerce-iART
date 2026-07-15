@@ -7,6 +7,10 @@ import multerS3 from "multer-s3";
 import s3 from "../configs/s3.js"; // your S3 instance
 import axios from "axios";
 import { maskToken, maskInstagram } from "../utils/helper.js";
+import {
+  fetchFacebookPages,
+  fetchInstagramBusinessAccount,
+} from "../services/instagramApi.js";
 
 export const registerMerchant = async (req, res) => {
   try {
@@ -1011,6 +1015,122 @@ export async function refreshInstagramToken(req, res) {
       success: false,
       message: err.message,
       meta_error: err?.response?.data,
+    });
+  }
+}
+
+// PUT /api/merchant/:merchantId/instagram/connect-sdk
+export async function updateInstagramConnectSdk(req, res) {
+  try {
+    const {
+      accessToken,
+      appSecret,
+      verifyToken,
+      graphApiVersion = "v25.0",
+      siteBaseUrl,
+      appId,
+      InstagramAppSecret,
+      whatsappPhoneNumberId,
+    } = req.body;
+
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Access Token is required",
+      });
+    }
+
+    const merchantId = req.merchant._id;
+
+    // Temporary config for Graph API calls
+    const merchantConfig = {
+      accessToken,
+      graphApiVersion,
+    };
+
+    /**
+     * STEP 1
+     * Fetch Facebook Pages
+     */
+    const pages = await fetchFacebookPages(merchantConfig);
+
+    if (!pages.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No Facebook Pages found.",
+      });
+    }
+
+    const page = pages[0];
+
+    const pageId = page.id;
+    const pageAccessToken = page.access_token;
+
+    /**
+     * STEP 2
+     * Fetch Instagram Business Account
+     */
+    const igResponse = await fetchInstagramBusinessAccount(pageId, {
+      ...merchantConfig,
+      pageAccessToken,
+    });    
+
+    const igBusinessId =
+      igResponse?.instagram_business_account?.id || "";
+
+    /**
+     * STEP 3
+     * Save everything
+     */
+    const update = {
+      "instagram.accessToken": accessToken,
+      "instagram.pageAccessToken": pageAccessToken,
+      "instagram.pageId": pageId,
+      "instagram.igBusinessId": igBusinessId,
+      "instagram.graphApiVersion": graphApiVersion,
+    };
+
+    if (appSecret)
+      update["instagram.appSecret"] = appSecret.trim();
+
+    if (verifyToken)
+      update["instagram.verifyToken"] = verifyToken.trim();
+
+    if (siteBaseUrl)
+      update["instagram.siteBaseUrl"] = siteBaseUrl.trim();
+
+    if (appId)
+      update["instagram.appId"] = appId.trim();
+
+    if (InstagramAppSecret)
+      update["instagram.InstagramAppSecret"] =
+        InstagramAppSecret.trim();
+
+    if (whatsappPhoneNumberId)
+      update["instagram.whatsappPhoneNumberId"] =
+        whatsappPhoneNumberId.trim();
+
+    const merchant = await Merchant.findByIdAndUpdate(
+      merchantId,
+      {
+        $set: update,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("MerchantName instagram");
+
+    return res.json({
+      success: true,
+      message: "Instagram connected successfully.",
+    });
+  } catch (err) {
+    console.error(err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
     });
   }
 }

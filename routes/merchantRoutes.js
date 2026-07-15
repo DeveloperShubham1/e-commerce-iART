@@ -17,6 +17,7 @@ import {
   getSubscriptionStatus,
   disconnectInstagram,
   refreshInstagramToken,
+  updateInstagramConnectSdk
 } from "../controllers/merchantController.js";
 import authMerchant from "../middlewares/merchantAuth.js";
 
@@ -36,6 +37,7 @@ router.get("/settings", authMerchant, getMerchantSettings);
 
 router.get("/instagram", authMerchant, getInstagramConfig);
 router.put("/instagram", authMerchant, updateInstagramConfig);
+router.put("/instagram/connect-sdk", authMerchant, updateInstagramConnectSdk);
 router.post("/instagram/verify-token", authMerchant, verifyInstagramToken);
 router.post("/instagram/subscribe-webhook", authMerchant, subscribeWebhook);
 router.get(
