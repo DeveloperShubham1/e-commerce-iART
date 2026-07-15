@@ -48,36 +48,110 @@ export async function igExchange(req, res) {
   return res.json({ success: true, isGuest: user.isGuest });
 }
 
-// controllers/authController.js
+
 export async function completeGuestProfile(req, res) {
-  const userId = req.user?._id;
-  if (!userId)
-    return res.status(401).json({ success: false, message: "Unauthorized" });
+  try {
+    const userId = req.user?._id;
 
-  const { name, email, password } = req.body;
-  if (!email || !password) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Email and password required" });
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const { name, email, password, currentPassword } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Email can only be changed by guest users
+    if (!user.isGuest && email && email !== user.email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email cannot be changed.",
+      });
+    }
+
+    // Guest user flow
+    if (user.isGuest) {
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: "Email and password are required.",
+        });
+      }
+
+      // Check email uniqueness
+      const existingUser = await User.findOne({
+        email,
+        _id: { $ne: userId },
+      });
+
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: "Email already in use.",
+        });
+      }
+
+      user.email = email;
+      user.password = await bcrypt.hash(password, 10);
+      user.isGuest = false;
+    } else {
+      // Existing user must provide current password to change password
+      if (password) {
+        if (!currentPassword) {
+          return res.status(400).json({
+            success: false,
+            message: "Current password is required.",
+          });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+        if (!isMatch) {
+          return res.status(400).json({
+            success: false,
+            message: "Current password is incorrect.",
+          });
+        }
+
+        user.password = await bcrypt.hash(password, 10);
+      }
+    }
+
+    // Name can always be updated
+    if (name) {
+      user.name = name;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: user.isGuest
+        ? "Profile updated successfully."
+        : "Profile completed successfully.",
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isGuest: user.isGuest,
+      },
+    });
+  } catch (error) {
+    console.error("Complete guest profile error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error.",
+    });
   }
-
-  const existing = await User.findOne({ email, _id: { $ne: userId } });
-  if (existing) {
-    return res
-      .status(409)
-      .json({ success: false, message: "Email already in use" });
-  }
-
-  const hashed = await bcrypt.hash(password, 10); // match whatever your signup flow already uses
-  const user = await User.findByIdAndUpdate(
-    userId,
-    { name: name || undefined, email, password: hashed, isGuest: false },
-    { new: true },
-  );
-
-  return res.json({
-    success: true,
-    message: "Profile completed",
-    isGuest: user.isGuest,
-  });
 }

@@ -169,7 +169,7 @@ export async function fetchMediaById(mediaId, mc) {
 export async function fetchMediaComments(mediaId, mc) {
   const data = await makeFacebookGetRequest(
     `/${mediaId}/comments`,
-    { fields: "id,text,username,timestamp" },
+    { fields: "id,text,username,timestamp,from" },
     mc,
   );
   return data?.data || [];
@@ -249,7 +249,7 @@ export async function fetchAllInstagramMessages(mc) {
 
 // ── Write endpoints ───────────────────────────────────────────────────────────
 
-const MOCK_MODE = process.env.IG_MOCK_MODE === false;
+const MOCK_MODE = process.env.IG_MOCK_MODE === true;
 
 /**
  * Send PUBLIC comment reply.

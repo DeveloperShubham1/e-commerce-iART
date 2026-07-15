@@ -10,19 +10,14 @@ const SEND_REPLY = (process.env.SEND_REPLY ?? "true") === "true";
 // ── Message builders ──────────────────────────────────────────────────────────
 
 function buildReplyText() {
-  // Public comment reply — tells user to check DM
   return `Thanks for your interest! 😊 We've sent you the product link in your DM. Check it out! 📩`;
 }
 
 function buildDMText(dmProductUrl) {
-  // Private DM — contains the token-bearing product link
   return `Hi! 👋\nThanks for your comment!\n\nHere's the product link you were interested in:\n👉 ${dmProductUrl}\n\nFeel free to reach out if you have any questions. 😊`;
 }
 
 function buildProductUrl(product, merchantConfig) {
-  // Plain URL — safe to expose publicly (no token). Used as the base for the
-  // DM link and as the fallback link if the DM send fails and we have to
-  // reply publicly on the comment.
   return (
     product.product_url ||
     `${merchantConfig.siteBaseUrl}/product/${product.product_id}`
@@ -30,7 +25,6 @@ function buildProductUrl(product, merchantConfig) {
 }
 
 function buildDMProductUrl(baseUrl, igToken) {
-  // Token-bearing URL — only ever sent via DM, never posted publicly.
   const sep = baseUrl.includes("?") ? "&" : "?";
   return `${baseUrl}${sep}source=ig_dm&token=${igToken}`;
 }

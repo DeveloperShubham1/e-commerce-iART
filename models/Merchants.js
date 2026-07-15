@@ -25,6 +25,7 @@ const MerchantSchema = new mongoose.Schema({
     // ── Tokens ───────────────────────────────────────────────────
     accessToken: { type: String, default: null }, // Facebook User token (~60 days)
     pageAccessToken: { type: String, default: null }, // Facebook Page token
+    whatsappPhoneNumberId: { type: String, default: null }, // WhatsApp Business Account phone number ID
 
     // ── App config ───────────────────────────────────────────────
     appId: { type: String, default: null }, // Meta App ID  e.g. 1488658929655138

@@ -21,11 +21,12 @@ export async function loadMerchantConfig(merchantId) {
     !ig.accessToken ||
     !ig.pageAccessToken ||
     !ig.igBusinessId ||
-    !ig.pageId
+    !ig.pageId ||
+    !ig.whatsappPhoneNumberId
   ) {
     throw new Error(
       `Merchant ${merchant.MerchantName} is missing required Instagram fields. ` +
-        `Ensure accessToken, pageAccessToken, igBusinessId, and pageId are saved.`,
+        `Ensure accessToken, pageAccessToken, igBusinessId, whatsappPhoneNumberId and pageId are saved.`,
     );
   }
 
@@ -50,6 +51,7 @@ function buildConfig(ig) {
     pageAccessToken: ig.pageAccessToken,
     igBusinessId: ig.igBusinessId,
     pageId: ig.pageId,
+    whatsappPhoneNumberId: ig.whatsappPhoneNumberId,
     appId: ig.appId,
     appSecret: ig.appSecret,
     siteBaseUrl: ig.siteBaseUrl || "https://example.com",
@@ -62,6 +64,7 @@ export async function saveMerchantInstagramConfig(merchantId, fields) {
     "accessToken",
     "pageAccessToken",
     "igBusinessId",
+    "whatsappPhoneNumberId",
     "pageId",
     "appId",
     "appSecret",

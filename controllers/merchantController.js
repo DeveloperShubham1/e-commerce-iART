@@ -555,6 +555,7 @@ export async function updateInstagramConfig(req, res) {
       siteBaseUrl,
       appId,
       InstagramAppSecret,
+      whatsappPhoneNumberId,
     } = req.body;
 
     let merchantId = req.merchant._id;
@@ -578,6 +579,8 @@ export async function updateInstagramConfig(req, res) {
     if (appId !== undefined) update["instagram.appId"] = appId.trim();
     if (InstagramAppSecret !== undefined)
       update["instagram.InstagramAppSecret"] = InstagramAppSecret.trim();
+    if (whatsappPhoneNumberId !== undefined)
+      update["instagram.whatsappPhoneNumberId"] = whatsappPhoneNumberId.trim();
 
     if (Object.keys(update).length === 0) {
       return res
@@ -727,7 +730,9 @@ export async function verifyInstagramToken(req, res) {
 
       // Token info
       // app_id: data.app_id,
-       expires_at: data.data_access_expires_at ? new Date(data.data_access_expires_at * 1000) : null,
+      expires_at: data.data_access_expires_at
+        ? new Date(data.data_access_expires_at * 1000)
+        : null,
       //   scopes: grantedScopes,
 
       // Full scope map for reference

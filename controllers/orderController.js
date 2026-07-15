@@ -7,7 +7,11 @@ import Address from "../models/Address.js";
 import Merchants from "../models/Merchants.js";
 import mongoose from "mongoose";
 import { getDateMatch } from "../utils/getDateMatch.js";
-
+import {
+  notifyOrderPlaced,
+  notifyOrderStatusUpdate,
+} from "../services/whatsappservice.js";
+import { loadMerchantConfig } from "../configs/merchantConfigService.js";
 //Generate unique order ID based on date & time
 
 const generateOrderId = () => {
@@ -22,6 +26,7 @@ const generateOrderId = () => {
   return `ORD-${yyyy}${MM}${dd}${hh}${mm}${ss}-${rand}`;
 };
 
+// ================= CREATE COD ORDER ================= //
 export const placeOrder = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -39,6 +44,14 @@ export const placeOrder = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Merchant not found",
+      });
+    }
+
+    const addressInfo = await Address.findById(address);
+    if (!addressInfo) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found",
       });
     }
 
@@ -138,6 +151,23 @@ export const placeOrder = async (req, res) => {
       $set: { cartItems: [] },
     });
 
+    const merchantConfig = await loadMerchantConfig(order.merchantId);
+
+  
+
+    // 📲 Notify customer
+    notifyOrderPlaced(
+      {
+        phone: addressInfo.phone || req.user.phone,
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+        paymentType: "cod",
+        paymentStatus: "pending",
+        orderStatus: "pending",
+      },
+      merchantConfig,
+    );
+
     res.status(201).json({
       success: true,
       message: "Order placed successfully",
@@ -220,7 +250,20 @@ export const updateOrderStatus = async (req, res) => {
       orderId,
       { $set: updateFields },
       { new: true },
-    );
+    ).populate({
+      path: "address",
+    });
+
+    if (orderStatus || paymentStatus || typeof isPaid === "boolean") {
+      notifyOrderStatusUpdateDetailed({
+        phone: updatedOrder.address?.phone,
+        orderId: updatedOrder.orderId,
+        orderStatus: updatedOrder.orderStatus,
+        paymentStatus: updatedOrder.paymentStatus,
+        paymentType: updatedOrder.paymentType,
+        isPaid: updatedOrder.isPaid,
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -240,144 +283,7 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
-// export const placeWithOrder = async (req, res) => {
-//   try {
-//     const userId = req.user._id;
-//     const { merchantId, items, address } = req.body;
-
-//     // ---------- VALIDATION ----------
-//     if (!merchantId || !items?.length || !address) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "merchantId, items and address are required",
-//       });
-//     }
-
-//     const merchant = await Merchants.findById(merchantId);
-//     if (!merchant) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Merchant not found",
-//       });
-//     }
-
-//     let totalAmount = 0;
-//     const itemDetails = [];
-
-//     // ---------- PRODUCT / VARIANT / SIZE VALIDATION ----------
-//     for (const item of items) {
-//       const product = await Product.findById(item.productId);
-//       if (!product) {
-//         return res
-//           .status(404)
-//           .json({ success: false, message: "Product not found" });
-//       }
-
-//       // Check merchant ownership
-//       if (product.merchantId.toString() !== merchantId.toString()) {
-//         return res.status(400).json({
-//           success: false,
-//           message: `${product.name} does not belong to this merchant`,
-//         });
-//       }
-
-//       // Find Variant
-//       const variant = product.variants.find(
-//         (v) => v._id.toString() === item.variantId
-//       );
-//       if (!variant) {
-//         return res
-//           .status(400)
-//           .json({ success: false, message: "Variant not found" });
-//       }
-
-//       // Find Size
-//       const sizeObj = variant.sizes.find((s) => s.size === item.size);
-//       if (!sizeObj) {
-//         return res.status(400).json({
-//           success: false,
-//           message: `Size ${item.size} not available`,
-//         });
-//       }
-
-//       // Stock check
-//       if (sizeObj.stock < item.quantity) {
-//         return res.status(400).json({
-//           success: false,
-//           message: `Only ${sizeObj.stock} items left for ${product.name}`,
-//         });
-//       }
-
-//       // ---------- PRICE CALCULATION ----------
-//       const mrp = sizeObj.price;
-//       const discountPercent = sizeObj.offerPrice || 0;
-//       const discountedPrice = mrp - Math.round((mrp * discountPercent) / 100);
-
-//       const finalPrice = discountedPrice * item.quantity;
-//       totalAmount += finalPrice;
-
-//       itemDetails.push({
-//         productId: product._id,
-//         variantId: variant._id,
-//         size: item.size,
-//         quantity: item.quantity,
-//         mrp,
-//         discountPercent,
-//         price: discountedPrice,
-//       });
-
-//       // Reduce stock (in-memory)
-//       sizeObj.stock -= item.quantity;
-
-//       // Save product stock
-//       await product.save();
-//     }
-
-//     // ---------- GENERATE ORDER ID ----------
-//     const orderId = generateOrderId();
-
-//     // ---------- RAZORPAY ----------
-//     const razorpayInstance = new Razorpay({
-//       key_id: merchant.razorpayKey,
-//       key_secret: merchant.razorpaySecret,
-//     });
-
-//     const razorpayOrder = await razorpayInstance.orders.create({
-//       amount: totalAmount * 100, // paise
-//       currency: "INR",
-//       receipt: orderId,
-//     });
-
-//     // ---------- CREATE ORDER ----------
-//     const order = await Order.create({
-//       orderId,
-//       razorpayOrderId: razorpayOrder.id,
-//       userId,
-//       merchantId,
-//       address,
-//       items: itemDetails,
-//       totalAmount,
-//       paymentType: "online",
-//       paymentStatus: "pending",
-//       orderStatus: "pending",
-//     });
-
-//     return res.status(201).json({
-//       success: true,
-//       message: "Order created. Continue payment.",
-//       order,
-//       razorpayOrder,
-//       key: merchant.razorpayKey,
-//     });
-//   } catch (error) {
-//     console.error("Place online order error:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// };
-
+// ================= CREATE ONLINE PAYMENT ORDER ================= //
 export const createOnlineOrder = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -493,6 +399,7 @@ export const createOnlineOrder = async (req, res) => {
   }
 };
 
+// ================= VERIFY PAYMENT ================= //
 export const verifyPayment = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -506,7 +413,9 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
+    const order = await Order.findOne({
+      razorpayOrderId: razorpay_order_id,
+    }).populate("address");
     if (!order) {
       return res
         .status(404)
@@ -554,6 +463,15 @@ export const verifyPayment = async (req, res) => {
     order.orderStatus = "confirmed";
     await order.save();
 
+    notifyOrderPlacedDetailed({
+      phone: order.address?.phone,
+      orderId: order.orderId,
+      totalAmount: order.totalAmount,
+      paymentType: order.paymentType,
+      paymentStatus: order.paymentStatus,
+      orderStatus: order.orderStatus,
+    });
+
     // 🛒 Clear user cart
     await User.findByIdAndUpdate(userId, {
       $set: { cartItems: [] },
@@ -585,107 +503,6 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
-// export const getAllOrdersByMerchant = async (req, res) => {
-//   try {
-//     const merchantId = req.merchant._id;
-
-//     let {
-//       type = "All",
-//       fromDate,
-//       toDate,
-//       from, // optional support
-//       to, // optional support
-//       page = 1,
-//       limit = 10,
-//     } = req.query;
-
-//     // normalize pagination
-//     page = parseInt(page);
-//     limit = parseInt(limit);
-//     const skip = (page - 1) * limit;
-
-//     // normalize custom dates
-//     fromDate = fromDate || from;
-//     toDate = toDate || to;
-
-//     // base query
-//     let query = { merchantId };
-//     const now = new Date();
-
-//     /* ================= DATE FILTER ================= */
-
-//     // 🔹 CUSTOM RANGE (HIGHEST PRIORITY)
-//     if (type === "Custom" && fromDate && toDate) {
-//       const startDate = new Date(fromDate);
-//       startDate.setHours(0, 0, 0, 0);
-
-//       const endDate = new Date(toDate);
-//       endDate.setHours(23, 59, 59, 999);
-
-//       query.createdAt = {
-//         $gte: startDate,
-//         $lte: endDate,
-//       };
-//     }
-
-//     // 🔹 TODAY
-//     else if (type === "Today") {
-//       const startOfDay = new Date(
-//         now.getFullYear(),
-//         now.getMonth(),
-//         now.getDate()
-//       );
-//       query.createdAt = { $gte: startOfDay };
-//     }
-
-//     // 🔹 LAST 7 DAYS
-//     else if (type === "Week") {
-//       const sevenDaysAgo = new Date();
-//       sevenDaysAgo.setDate(now.getDate() - 7);
-//       query.createdAt = { $gte: sevenDaysAgo };
-//     }
-
-//     // 🔹 LAST 30 DAYS
-//     else if (type === "Month") {
-//       const thirtyDaysAgo = new Date();
-//       thirtyDaysAgo.setDate(now.getDate() - 30);
-//       query.createdAt = { $gte: thirtyDaysAgo };
-//     }
-
-//     /* ================= DB QUERIES ================= */
-
-//     const totalOrders = await Order.countDocuments(query);
-
-//     const orders = await Order.find(query)
-//       .populate("items.productId")
-//       .populate("address")
-//       .populate("userId", "name email")
-//       .sort({ createdAt: -1 })
-//       .skip(skip)
-//       .limit(limit);
-
-//     res.status(200).json({
-//       success: true,
-//       count: orders.length,
-//       totalOrders,
-//       currentPage: page,
-//       totalPages: Math.ceil(totalOrders / limit),
-//       orders,
-//       filters: {
-//         type,
-//         fromDate: fromDate || null,
-//         toDate: toDate || null,
-//       },
-//       message: "Orders fetched successfully",
-//     });
-//   } catch (error) {
-//     console.error("Get all orders error:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch orders",
-//     });
-//   }
-// };
 export const getAllOrdersByMerchant = async (req, res) => {
   try {
     const merchantId = req.merchant._id;
@@ -936,522 +753,6 @@ export const getOrdersByUserId = async (req, res) => {
     });
   }
 };
-
-// REPORT DATA
-
-// export const getSalesTrend = async (req, res) => {
-//   try {
-//     const merchantId = req.merchant._id;
-//     let { type = "month", fromDate, toDate } = req.query;
-
-//     const monthNames = [
-//       "Jan",
-//       "Feb",
-//       "Mar",
-//       "Apr",
-//       "May",
-//       "Jun",
-//       "Jul",
-//       "Aug",
-//       "Sep",
-//       "Oct",
-//       "Nov",
-//       "Dec",
-//     ];
-
-//     /* -------------------------------
-//        Generate date match for aggregation
-//     ------------------------------- */
-//     const now = new Date();
-//     let dateMatch = {};
-
-//     switch (type) {
-//       case "today":
-//         const startOfToday = new Date(now);
-//         startOfToday.setHours(0, 0, 0, 0);
-//         const endOfToday = new Date(now);
-//         endOfToday.setHours(23, 59, 59, 999);
-//         dateMatch.createdAt = { $gte: startOfToday, $lte: endOfToday };
-//         break;
-//       case "week":
-//       case "month":
-//       case "year":
-//         dateMatch = getDateMatch({ type });
-//         break;
-//       case "custom":
-//         if (!fromDate || !toDate) {
-//           return res.status(400).json({
-//             success: false,
-//             message: "fromDate and toDate are required for custom type",
-//           });
-//         }
-//         const start = new Date(fromDate);
-//         start.setHours(0, 0, 0, 0);
-
-//         const end = new Date(toDate);
-//         end.setHours(23, 59, 59, 999);
-
-//         dateMatch = {
-//           createdAt: { $gte: start, $lte: end },
-//         };
-//         break;
-//     }
-
-//     /* -------------------------------
-//        Determine aggregation group
-//     ------------------------------- */
-//     const getGroupBy = () => {
-//       switch (type) {
-//         case "today":
-//           return {
-//             year: { $year: "$createdAt" },
-//             month: { $month: "$createdAt" },
-//             day: { $dayOfMonth: "$createdAt" },
-//             slot: { $floor: { $divide: [{ $hour: "$createdAt" }, 3] } },
-//           };
-//         case "week":
-//         case "month":
-//         case "custom":
-//           return {
-//             year: { $year: "$createdAt" },
-//             month: { $month: "$createdAt" },
-//             day: { $dayOfMonth: "$createdAt" },
-//           };
-//         case "year":
-//           return {
-//             year: { $year: "$createdAt" },
-//             month: { $month: "$createdAt" },
-//           };
-//         default:
-//           return {};
-//       }
-//     };
-
-//     const groupBy = getGroupBy();
-
-//     /* -------------------------------
-//        Aggregate Orders
-//     ------------------------------- */
-//     const orderStats = await Order.aggregate([
-//       {
-//         $match: {
-//           merchantId: new mongoose.Types.ObjectId(merchantId),
-//           paymentStatus: "paid",
-//           ...dateMatch,
-//         },
-//       },
-//       { $unwind: "$items" },
-//       {
-//         $group: {
-//           _id: groupBy,
-//           sales: { $sum: "$totalAmount" },
-//           sold: { $sum: "$items.quantity" },
-//         },
-//       },
-//     ]);
-
-//     /* -------------------------------
-//        Aggregate Products
-//     ------------------------------- */
-//     const productStats = await Product.aggregate([
-//       {
-//         $match: {
-//           merchantId: new mongoose.Types.ObjectId(merchantId),
-//           ...dateMatch,
-//         },
-//       },
-//       { $group: { _id: groupBy, added: { $sum: 1 } } },
-//     ]);
-
-//     /* -------------------------------
-//        Generate all buckets
-//     ------------------------------- */
-//     const buckets = [];
-//     const formatKey = (date) =>
-//       `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-
-//     if (type === "today") {
-//       for (let slot = 0; slot < 8; slot++) {
-//         buckets.push({
-//           key: slot,
-//           period: `${slot * 3}:00 - ${(slot + 1) * 3}:00`,
-//           sales: 0,
-//           sold: 0,
-//           added: 0,
-//         });
-//       }
-//     } else if (type === "week") {
-//       const dayOfWeek = now.getDay(); // 0 = Sunday
-//       const startOfWeek = new Date(now);
-//       startOfWeek.setDate(now.getDate() - dayOfWeek + 1);
-//       for (let i = 0; i < 7; i++) {
-//         const date = new Date(startOfWeek);
-//         date.setDate(startOfWeek.getDate() + i);
-//         buckets.push({
-//           key: formatKey(date),
-//           period: `${date.getDate()} ${monthNames[date.getMonth()]}`,
-//           sales: 0,
-//           sold: 0,
-//           added: 0,
-//         });
-//       }
-//     } else if (type === "month") {
-//       const currentMonth = now.getMonth();
-//       const currentYear = now.getFullYear();
-//       const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-//       for (let i = 1; i <= daysInMonth; i++) {
-//         buckets.push({
-//           key: i,
-//           period: `${i} ${monthNames[currentMonth]}`,
-//           sales: 0,
-//           sold: 0,
-//           added: 0,
-//         });
-//       }
-//     } else if (type === "custom") {
-//       const start = new Date(fromDate);
-//       const end = new Date(toDate);
-
-//       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-//         const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-//         buckets.push({
-//           key,
-//           period: `${d.getDate()} ${monthNames[d.getMonth()]}`,
-//           sales: 0,
-//           sold: 0,
-//           added: 0,
-//         });
-//       }
-//     } else if (type === "year") {
-//       for (let i = 0; i < 12; i++) {
-//         buckets.push({
-//           key: i + 1,
-//           period: monthNames[i],
-//           sales: 0,
-//           sold: 0,
-//           added: 0,
-//         });
-//       }
-//     }
-
-//     /* -------------------------------
-//        Merge DB data into buckets
-//     ------------------------------- */
-//     const mergeData = (arr, field) => {
-//       arr.forEach((item) => {
-//         let key;
-//         if (type === "today") key = item._id.slot;
-//         else if (type === "week" || type === "custom")
-//           key = `${item._id.year}-${item._id.month}-${item._id.day}`;
-//         else if (type === "month") key = item._id.day;
-//         else if (type === "year") key = item._id.month;
-
-//         const bucket = buckets.find((b) => b.key === key);
-//         if (bucket) {
-//           if (field === "order") {
-//             bucket.sales = item.sales;
-//             bucket.sold = item.sold;
-//           } else if (field === "product") {
-//             bucket.added = item.added;
-//           }
-//         }
-//       });
-//     };
-
-//     mergeData(orderStats, "order");
-//     mergeData(productStats, "product");
-
-//     /* -------------------------------
-//        Return response
-//     ------------------------------- */
-//     return res.json({ success: true, data: buckets });
-//   } catch (error) {
-//     console.error("Sales Trend Error:", error);
-//     return res
-//       .status(500)
-//       .json({ success: false, message: "Failed to fetch sales trend" });
-//   }
-// };
-
-// export const getTopSellingProducts = async (req, res) => {
-//   try {
-//     const merchantId = req.merchant._id;
-//     const { type, fromDate, toDate } = req.query;
-
-//     const dateMatch = getDateMatch({ type, fromDate, toDate });
-
-//     const topProducts = await Order.aggregate([
-//       {
-//         $match: {
-//           merchantId: new mongoose.Types.ObjectId(merchantId),
-//           paymentStatus: "paid",
-//           ...dateMatch,
-//         },
-//       },
-//       { $unwind: "$items" },
-//       {
-//         $group: {
-//           _id: "$items.productId",
-//           units: { $sum: "$items.quantity" },
-//           revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
-//         },
-//       },
-//       { $sort: { units: -1 } },
-//       { $limit: 5 },
-//       {
-//         $lookup: {
-//           from: "products",
-//           localField: "_id",
-//           foreignField: "_id",
-//           as: "product",
-//         },
-//       },
-//       { $unwind: "$product" },
-//       {
-//         $project: {
-//           name: "$product.name",
-//           units: 1,
-//           revenue: 1,
-//         },
-//       },
-//     ]);
-
-//     res.json({
-//       success: true,
-//       data: topProducts.map((p, i) => ({
-//         rank: i + 1,
-//         name: p.name,
-//         units: p.units,
-//         revenue: `₹${Math.round(p.revenue).toLocaleString("en-IN")}`,
-//       })),
-//     });
-//   } catch (error) {
-//     res
-//       .status(500)
-//       .json({ success: false, message: "Failed to fetch top products" });
-//   }
-// };
-
-// export const getPaymentAnalytics = async (req, res) => {
-//   try {
-//     const merchantId = req.merchant._id;
-//     let { type = "month", fromDate, toDate } = req.query;
-
-//     const monthNames = [
-//       "Jan",
-//       "Feb",
-//       "Mar",
-//       "Apr",
-//       "May",
-//       "Jun",
-//       "Jul",
-//       "Aug",
-//       "Sep",
-//       "Oct",
-//       "Nov",
-//       "Dec",
-//     ];
-
-//     /* -------------------------------
-//        Date Match (same as reference)
-//     ------------------------------- */
-//     const now = new Date();
-//     let dateMatch = {};
-
-//     switch (type) {
-//       case "today": {
-//         const start = new Date(now);
-//         start.setHours(0, 0, 0, 0);
-//         const end = new Date(now);
-//         end.setHours(23, 59, 59, 999);
-//         dateMatch.createdAt = { $gte: start, $lte: end };
-//         break;
-//       }
-
-//       case "week":
-//       case "month":
-//       case "year":
-//         dateMatch = getDateMatch({ type });
-//         break;
-
-//       case "custom": {
-//         if (!fromDate || !toDate) {
-//           return res.status(400).json({
-//             success: false,
-//             message: "fromDate and toDate are required",
-//           });
-//         }
-//         const start = new Date(fromDate);
-//         start.setHours(0, 0, 0, 0);
-//         const end = new Date(toDate);
-//         end.setHours(23, 59, 59, 999);
-//         dateMatch.createdAt = { $gte: start, $lte: end };
-//         break;
-//       }
-//     }
-
-//     /* -------------------------------
-//        Group By (same pattern)
-//     ------------------------------- */
-//     const getGroupBy = () => {
-//       switch (type) {
-//         case "today":
-//           return {
-//             slot: { $floor: { $divide: [{ $hour: "$createdAt" }, 3] } },
-//             paymentType: "$paymentType",
-//           };
-//         case "week":
-//         case "month":
-//         case "custom":
-//           return {
-//             year: { $year: "$createdAt" },
-//             month: { $month: "$createdAt" },
-//             day: { $dayOfMonth: "$createdAt" },
-//             paymentType: "$paymentType",
-//           };
-//         case "year":
-//           return {
-//             month: { $month: "$createdAt" },
-//             paymentType: "$paymentType",
-//           };
-//       }
-//     };
-
-//     /* -------------------------------
-//        Aggregate Orders
-//     ------------------------------- */
-//     const stats = await Order.aggregate([
-//       {
-//         $match: {
-//           merchantId: new mongoose.Types.ObjectId(merchantId),
-//           orderStatus: "delivered",
-//           ...dateMatch,
-//         },
-//       },
-//       {
-//         $group: {
-//           _id: getGroupBy(),
-//           revenue: { $sum: "$totalAmount" },
-//         },
-//       },
-//     ]);
-
-//     /* -------------------------------
-//        Create Buckets
-//     ------------------------------- */
-//     const buckets = [];
-//     const formatKey = (d) =>
-//       `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-
-//     if (type === "today") {
-//       for (let i = 0; i < 8; i++) {
-//         buckets.push({
-//           key: i,
-//           period: `${i * 3}:00 - ${(i + 1) * 3}:00`,
-//           cod: 0,
-//           online: 0,
-//         });
-//       }
-//     }
-
-//     if (type === "week") {
-//       const start = new Date(now);
-//       start.setDate(now.getDate() - now.getDay());
-//       for (let i = 0; i < 7; i++) {
-//         const d = new Date(start);
-//         d.setDate(start.getDate() + i);
-//         buckets.push({
-//           key: formatKey(d),
-//           period: d.toLocaleDateString("en-US", { weekday: "short" }),
-//           cod: 0,
-//           online: 0,
-//         });
-//       }
-//     }
-
-//     if (type === "month") {
-//       const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-//       for (let i = 1; i <= days; i++) {
-//         buckets.push({
-//           key: i,
-//           period: `${i} ${monthNames[now.getMonth()]}`,
-//           cod: 0,
-//           online: 0,
-//         });
-//       }
-//     }
-
-//     if (type === "custom") {
-//       for (
-//         let d = new Date(fromDate);
-//         d <= new Date(toDate);
-//         d.setDate(d.getDate() + 1)
-//       ) {
-//         buckets.push({
-//           key: formatKey(d),
-//           period: `${d.getDate()} ${monthNames[d.getMonth()]}`,
-//           cod: 0,
-//           online: 0,
-//         });
-//       }
-//     }
-
-//     if (type === "year") {
-//       for (let i = 0; i < 12; i++) {
-//         buckets.push({
-//           key: i + 1,
-//           period: monthNames[i],
-//           cod: 0,
-//           online: 0,
-//         });
-//       }
-//     }
-
-//     /* -------------------------------
-//        Merge DB Data
-//     ------------------------------- */
-//     stats.forEach((s) => {
-//       let key;
-
-//       if (type === "today") key = s._id.slot;
-//       else if (type === "year") key = s._id.month;
-//       else if (type === "month") key = s._id.day;
-//       else key = `${s._id.year}-${s._id.month}-${s._id.day}`;
-
-//       const bucket = buckets.find((b) => b.key === key);
-//       if (!bucket) return;
-
-//       if (s._id.paymentType === "cod") bucket.cod += s.revenue;
-//       else bucket.online += s.revenue;
-//     });
-
-//     /* -------------------------------
-//        Summary
-//     ------------------------------- */
-//     const totalOnline = buckets.reduce((a, b) => a + b.online, 0);
-//     const totalCod = buckets.reduce((a, b) => a + b.cod, 0);
-//     const total = totalOnline + totalCod;
-
-//     res.json({
-//       success: true,
-//       data: {
-//         summary: {
-//           onlineAmount: totalOnline,
-//           codAmount: totalCod,
-//           onlinePercent: total ? Math.round((totalOnline / total) * 100) : 0,
-//           codPercent: total ? Math.round((totalCod / total) * 100) : 0,
-//         },
-//         timeline: buckets,
-//       },
-//     });
-//   } catch (err) {
-//     console.error("Payment Analytics Error:", err);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch payment analytics",
-//     });
-//   }
-// };
 
 export const getSalesTrend = async (req, res) => {
   try {
@@ -1868,9 +1169,9 @@ export const getPaymentAnalytics = async (req, res) => {
       new Date().toLocaleString("en-US", { timeZone: IST_TIMEZONE }),
     );
     const formatShortDate = (d) =>
-  `${String(d.getDate()).padStart(2, "0")}/${
-    String(d.getMonth() + 1).padStart(2, "0")
-  }/${String(d.getFullYear()).slice(-2)}`;
+      `${String(d.getDate()).padStart(2, "0")}/${String(
+        d.getMonth() + 1,
+      ).padStart(2, "0")}/${String(d.getFullYear()).slice(-2)}`;
 
     const getDaysDiff = (start, end) =>
       Math.ceil((end - start) / (1000 * 60 * 60 * 24));

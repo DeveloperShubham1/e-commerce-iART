@@ -6,6 +6,10 @@ import {
 } from "../services/productService.js";
 import MessageLog from "../models/MessageLog.js";
 import InstagramPost from "../models/InstagramProduct.js";
+import {
+  syncNewCommentsForMedia,
+  syncNewCommentsForAllMedia,
+} from "../services/commentSyncService.js";
 
 export async function createOrUpdateMapping(req, res) {
   let merchantId = req.merchant._id;
@@ -118,6 +122,44 @@ export async function getInstagramPostProduct(req, res) {
     return res.status(500).json({
       success: false,
       message: err.message,
+    });
+  }
+}
+
+export async function syncInstagramComments(req, res) {
+  try {
+    const merchantId = req.merchant._id;
+    const { mediaId } = req.params;
+
+    const merchantConfig = await loadMerchantConfig(merchantId);
+    const summary = await syncNewCommentsForMedia(
+      mediaId,
+      merchantId,
+      merchantConfig,
+    );
+
+    return res.status(200).json({ success: true, ...summary });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error: " + error.message,
+    });
+  }
+}
+
+export async function syncAllInstagramComments(req, res) {
+  try {
+    const merchantId = req.merchant._id;
+
+    const summary = await syncNewCommentsForAllMedia(merchantId);
+
+    return res.status(200).json({ success: true, ...summary });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error: " + error.message,
     });
   }
 }

@@ -19,20 +19,50 @@ export async function createIgAuthToken({ merchantId, igsid, username, commentId
   });
 }
 
+// export async function consumeIgAuthToken(token) {
+//   let decoded;
+//   try {
+//     decoded = jwt.verify(token, process.env.JWT_SECRET);
+//   } catch {
+//     return null; // expired or tampered
+//   }
+//   if (decoded.purpose !== "ig_dm_autologin") return null;
+
+//   const record = await IgAuthToken.findOne({ jti: decoded.jti });
+//   if (!record || record.used || record.expiresAt < new Date()) return null;
+
+//   record.used = true;
+//   await record.save();
+
+//   return {
+//     merchantId: record.merchant_id,
+//     igsid: record.igsid,
+//     username: record.username,
+//     commentId: record.comment_id,
+//     productId: record.product_id,
+//   };
+// }
+
 export async function consumeIgAuthToken(token) {
   let decoded;
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch {
-    return null; // expired or tampered
+    return null; // expired signature or tampered — always reject
   }
   if (decoded.purpose !== "ig_dm_autologin") return null;
 
   const record = await IgAuthToken.findOne({ jti: decoded.jti });
-  if (!record || record.used || record.expiresAt < new Date()) return null;
 
-  record.used = true;
-  await record.save();
+  // No record, or genuinely past its TTL — reject
+  if (!record || record.expiresAt < new Date()) return null;
+
+  if (!record.used) {
+    record.used = true;
+    await record.save();
+  }
+  // If already used, fall through and return the same payload again —
+  // this is what allows a second click to still auto-login.
 
   return {
     merchantId: record.merchant_id,
@@ -40,5 +70,6 @@ export async function consumeIgAuthToken(token) {
     username: record.username,
     commentId: record.comment_id,
     productId: record.product_id,
+    reused: record.used, // useful if you want to log/audit repeat clicks
   };
 }

@@ -14,7 +14,10 @@ import {
 } from "../controllers/orderController.js";
 import { productListByUser } from "../controllers/productController.js";
 import { getMerchantSettings } from "../controllers/merchantController.js";
-import { igExchange } from "../controllers/authController.js";
+import {
+  igExchange,
+  completeGuestProfile,
+} from "../controllers/authController.js";
 
 const userRouter = express.Router();
 
@@ -23,6 +26,7 @@ userRouter.post("/login", login);
 userRouter.get("/is-auth", authUser, isAuth);
 userRouter.get("/logout", authUser, logout);
 userRouter.get("/ig-exchange", igExchange);
+userRouter.put("/update-profile", authUser, completeGuestProfile);
 
 //  user action
 userRouter.get("/categories", getCategories);
