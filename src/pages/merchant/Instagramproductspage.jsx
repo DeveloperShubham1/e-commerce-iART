@@ -9,6 +9,8 @@ import { toast } from "react-toastify";
 import CreateInstagramProductModal from "../../components/merchant/Createinstagramproductmodal";
 import InstagramProductDetailModal from "../../components/merchant/Instagramproductdetailmodal";
 import ConfirmModal from "../../functions/ConfirmModal";
+import { useSyncInstagramAllComments } from "../../services/merchant";
+import svgrepo from "../../assets/sync-svgrepo-com.svg"
 
 export default function InstagramProductsPage() {
   const [page, setPage] = useState(1);
@@ -19,6 +21,7 @@ export default function InstagramProductsPage() {
 
   const { data, isLoading, isError } = useInstagramProducts(page, 10);
   const deleteMutation = useDeleteInstagramProduct();
+  const syncMutation = useSyncInstagramAllComments();
 
   const products = data?.data || [];
   const pagination = data?.pagination || {};
@@ -49,20 +52,38 @@ export default function InstagramProductsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Instagram Products</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            Instagram Products
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
             Map Instagram posts and reels to your store products
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-[#151F33] hover:bg-purple-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
-          <Plus size={16} />
-          Add Mapping
-        </button>
+
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
+          >
+            <img
+              src={svgrepo}
+              alt="Sync"
+              className={`h-4 w-4 ${syncMutation.isPending ? "animate-spin" : ""}`}
+            />
+            {syncMutation.isPending ? "Syncing..." : "Sync Comments"}
+          </button>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-[#151F33] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#24314f] hover:cursor-pointer"
+          >
+            <Plus size={16} />
+            Add Mapping
+          </button>
+        </div>
       </div>
 
       {/* Table card */}
@@ -149,7 +170,7 @@ export default function InstagramProductsPage() {
                         onClick={() =>
                           setSelectedMediaId(item.instagram_media_id)
                         }
-                        className="rounded-md border p-2"
+                        className="rounded-md border p-2 hover:cursor-pointer"
                       >
                         <Eye size={16} />
                       </button>
@@ -158,7 +179,7 @@ export default function InstagramProductsPage() {
                         onClick={() =>
                           handleDelete(item.instagram_media_id)
                         }
-                        className="rounded-md border p-2 text-red-500"
+                        className="rounded-md border p-2 text-red-500 hover:cursor-pointer"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -256,7 +277,7 @@ export default function InstagramProductsPage() {
                           <button
                             title="View details"
                             onClick={() => setSelectedMediaId(item?.instagram_media_id)}
-                            className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 bg-white hover:bg-purple-50 hover:border-purple-400 hover:text-purple-600 text-gray-500 transition-colors"
+                            className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 bg-white hover:bg-purple-50 hover:border-purple-400 hover:text-purple-600 text-gray-500 transition-colors hover:cursor-pointer"
                           >
                             <Eye size={15} />
                           </button>
@@ -264,7 +285,7 @@ export default function InstagramProductsPage() {
                             title="Delete mapping"
                             onClick={() => handleDelete(item?.instagram_media_id)}
                             disabled={deleteMutation.isPending}
-                            className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 bg-white hover:bg-red-50 hover:border-red-400 hover:text-red-500 text-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 bg-white hover:bg-red-50 hover:border-red-400 hover:text-red-500 text-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -290,7 +311,7 @@ export default function InstagramProductsPage() {
                 >
                   Previous
                 </button>
-                <span className="w-8 h-8 flex items-center justify-center text-sm font-semibold bg-[#151F33] text-white rounded-md">
+                <span className="w-8 h-8 flex items-center justify-center text-sm font-semibold bg-[#151F33] text-white rounded-md hover:cursor-pointer">
                   {pagination.current_page}
                 </span>
                 <button

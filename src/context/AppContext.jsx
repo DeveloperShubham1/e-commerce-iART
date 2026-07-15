@@ -385,6 +385,7 @@ export const AppContextProvider = ({ children }) => {
     settings,
     merchantData,
     setMerchantData,
+    fetchUser
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

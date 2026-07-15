@@ -3,9 +3,11 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import { assets } from "../assets/assets";
 import ProductCard from "../components/ProductCard";
+import { exchangeInstagramToken } from "../api";
+import { toast } from "react-toastify";
 
 const ProductDetails = () => {
-  const { products, navigate, currency, addToCart, cartItems } =
+  const { products, navigate, currency, addToCart, cartItems, fetchUser } =
     useAppContext();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -17,6 +19,45 @@ const ProductDetails = () => {
 
   const product = products.find((item) => item._id === id);
   const variantIdFromUrl = searchParams.get("variant");
+
+  useEffect(() => {
+    const token = searchParams.get("token");
+    if (!token) return;
+
+    const exchangeToken = async () => {
+      try {
+        const data = await exchangeInstagramToken(token);
+
+        if (data.success) {
+          await fetchUser();
+          toast.success("Login successfull as guest!")
+        }
+      } catch (err) {
+        const errorMsg =
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          err.message ||
+          "Failed to log in";
+
+        console.log("IG token exchange failed:", errorMsg);
+        toast.error(errorMsg);
+      } finally {
+        const params = new URLSearchParams(searchParams);
+        params.delete("token");
+        params.delete("source");
+
+        const query = params.toString();
+
+        window.history.replaceState(
+          {},
+          "",
+          `${window.location.pathname}${query ? `?${query}` : ""}`
+        );
+      }
+    };
+
+    exchangeToken();
+  }, [searchParams]);
 
   /* ---------------- DEFAULT VARIANT & SIZE ---------------- */
   useEffect(() => {
@@ -93,9 +134,9 @@ const ProductDetails = () => {
   const finalPrice =
     selectedSize?.offerPrice && selectedSize.offerPrice > 0
       ? (
-          selectedSize.price -
-          (selectedSize.price * selectedSize.offerPrice) / 100
-        ).toFixed(2)
+        selectedSize.price -
+        (selectedSize.price * selectedSize.offerPrice) / 100
+      ).toFixed(2)
       : selectedSize?.price;
 
   return (
@@ -180,10 +221,9 @@ const ProductDetails = () => {
                   onClick={() => setSelectedVariant(v)}
                   style={{ backgroundColor: v.colorCode }}
                   className={`w-8 h-8 rounded-full border-2
-                    ${
-                      selectedVariant?._id === v._id
-                        ? "ring-2 ring-primary"
-                        : ""
+                    ${selectedVariant?._id === v._id
+                      ? "ring-2 ring-primary"
+                      : ""
                     }`}
                 />
               ))}
@@ -200,10 +240,9 @@ const ProductDetails = () => {
                   disabled={s.stock === 0}
                   onClick={() => setSelectedSize(s)}
                   className={`px-4 py-1 border rounded transition
-                    ${
-                      selectedSize?._id === s._id
-                        ? "bg-primary text-white"
-                        : "hover:bg-gray-200"
+                    ${selectedSize?._id === s._id
+                      ? "bg-primary text-white"
+                      : "hover:bg-gray-200"
                     }
                     ${s.stock === 0 ? "opacity-40 cursor-not-allowed" : ""}
                   `}

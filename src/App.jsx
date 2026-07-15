@@ -32,6 +32,7 @@ import Loader from "./components/Loader";
 import ReportPage from "./components/merchant/ReportPage";
 import Instagramproductspage from "./pages/merchant/Instagramproductspage";
 import Profile from "./pages/merchant/Profile";
+import ProfilePage from "./pages/UserProfile";
 
 
 const BUILD_TYPE = import.meta.env.VITE_BUILD_TYPE; // user | merchant
@@ -131,6 +132,7 @@ const App = () => {
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/add-address" element={<AddAddress />} />
                 <Route path="/my-orders" element={<MyOrders />} />
+                <Route path="/user/profile" element={<ProfilePage />} />
                 <Route path="/loader" element={<Loading />} />
                 <Route path="/buy-now" element={<BuyNow />} />
                 <Route path="/login" element={<Login />} />

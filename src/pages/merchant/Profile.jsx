@@ -22,6 +22,7 @@ export default function Profile() {
     graphApiVersion: "v25.0",
     siteBaseUrl: "",
     InstagramAppSecret: "",
+    whatsappPhoneNumberId: "",
   });
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function Profile() {
           data.instagram.graphApiVersion || "v25.0",
         siteBaseUrl: data.instagram.siteBaseUrl || "",
         InstagramAppSecret: data.instagram.InstagramAppSecret || "",
+        whatsappPhoneNumberId: data.instagram.whatsappPhoneNumberId || "",
       });
     }
   }, [data]);
@@ -180,6 +182,13 @@ export default function Profile() {
           label="Instagram App Secret"
           name="InstagramAppSecret"
           value={form.InstagramAppSecret}
+          onChange={handleChange}
+        />
+
+        <Input
+          label="WhatsApp Phone Number ID"
+          name="whatsappPhoneNumberId"
+          value={form.whatsappPhoneNumberId}
           onChange={handleChange}
         />
 

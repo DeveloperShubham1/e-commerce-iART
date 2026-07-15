@@ -103,6 +103,12 @@ const Navbar = () => {
                 My Orders
               </li>
               <li
+                onClick={() => navigate("/user/profile")}
+                className="p-1.5 pl-3 hover:bg-primary/10 cursor-pointer"
+              >
+               My Profile
+              </li>
+              <li
                 onClick={logout}
                 className="p-1.5 pl-3 hover:bg-primary/10 cursor-pointer"
               >
@@ -138,9 +144,8 @@ const Navbar = () => {
 
       {open && (
         <div
-          className={`${
-            open ? "flex" : "hidden"
-          } absolute top-[60px] right-5 w-30 bg-white shadow-md py-4 flex-col items-start gap-2 px-5 text-sm md:hidden z-50`}
+          className={`${open ? "flex" : "hidden"
+            } absolute top-[60px] right-5 w-30 bg-white shadow-md py-4 flex-col items-start gap-2 px-5 text-sm md:hidden z-50`}
         >
           <NavLink to="/" onClick={() => setOpen(false)}>
             Home
@@ -151,6 +156,11 @@ const Navbar = () => {
           {user && (
             <NavLink to="/cart" onClick={() => setOpen(false)}>
               My Orders
+            </NavLink>
+          )}
+          {user && (
+            <NavLink to="/user/profile" onClick={() => setOpen(false)}>
+             My Profile
             </NavLink>
           )}
           <NavLink to="/" onClick={() => setOpen(false)}>

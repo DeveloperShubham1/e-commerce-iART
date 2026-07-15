@@ -87,3 +87,26 @@ export const verifyInstagramToken = async () => {
     const { data } = await axios.post("/api/merchant/instagram/verify-token");
     return data;
 };
+
+export const exchangeInstagramToken = async (token) => {
+    const { data } = await axios.get("/api/user/ig-exchange", {
+        params: { token },
+        withCredentials: true,
+    });
+    return data;
+};
+
+export const syncInstagramComments = async (mediaId) => {
+    const { data } = await axios.post(`/api/posts/${mediaId}/sync-comments`);
+    return data;
+};
+
+export const syncInstagramAllComments = async () => {
+    const { data } = await axios.post(`/api/posts/sync-comments`);
+    return data;
+};
+
+export const updateProfile = async (payload) => {
+    const { data } = await axios.put("/api/user/update-profile", payload);
+    return data;
+};
