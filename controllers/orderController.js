@@ -153,8 +153,6 @@ export const placeOrder = async (req, res) => {
 
     const merchantConfig = await loadMerchantConfig(order.merchantId);
 
-  
-
     // 📲 Notify customer
     notifyOrderPlaced(
       {
@@ -254,15 +252,22 @@ export const updateOrderStatus = async (req, res) => {
       path: "address",
     });
 
+    console.log("Updated Order:", updatedOrder);
+
+    const merchantConfig = await loadMerchantConfig(updatedOrder.merchantId);
+
     if (orderStatus || paymentStatus || typeof isPaid === "boolean") {
-      notifyOrderStatusUpdateDetailed({
-        phone: updatedOrder.address?.phone,
-        orderId: updatedOrder.orderId,
-        orderStatus: updatedOrder.orderStatus,
-        paymentStatus: updatedOrder.paymentStatus,
-        paymentType: updatedOrder.paymentType,
-        isPaid: updatedOrder.isPaid,
-      });
+      notifyOrderStatusUpdate(
+        {
+          phone: updatedOrder.address?.phone,
+          orderId: updatedOrder.orderId,
+          orderStatus: updatedOrder.orderStatus,
+          paymentStatus: updatedOrder.paymentStatus,
+          paymentType: updatedOrder.paymentType,
+          isPaid: updatedOrder.isPaid,
+        },
+        merchantConfig,
+      );
     }
 
     return res.status(200).json({
@@ -463,14 +468,20 @@ export const verifyPayment = async (req, res) => {
     order.orderStatus = "confirmed";
     await order.save();
 
-    notifyOrderPlacedDetailed({
-      phone: order.address?.phone,
-      orderId: order.orderId,
-      totalAmount: order.totalAmount,
-      paymentType: order.paymentType,
-      paymentStatus: order.paymentStatus,
-      orderStatus: order.orderStatus,
-    });
+    const merchantConfig = await loadMerchantConfig(order.merchantId);
+
+    // 📲 Notify customer
+    notifyOrderPlaced(
+      {
+        phone: order.address?.phone,
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+        paymentType: order.paymentType,
+        paymentStatus: order.paymentStatus,
+        orderStatus: order.orderStatus,
+      },
+      merchantConfig,
+    );
 
     // 🛒 Clear user cart
     await User.findByIdAndUpdate(userId, {

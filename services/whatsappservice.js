@@ -17,7 +17,7 @@ function buildUrl(merchantConfig) {
   return `https://graph.facebook.com/${GRAPH_API_VERSION}/${whatsappPhoneNumberId}/messages`;
 }
 
-async function sendWhatsAppRequest(payload, merchantConfig) {
+async function sendWhatsAppRequest(payload, merchantConfig) {  
   const { accessToken } = merchantConfig;
 
   try {
@@ -167,7 +167,7 @@ export const notifyOrderStatusUpdate = (
     paymentStatus,
     paymentType,
     isPaid,
-    templateName = "order_status_update",
+    templateName = "order_status_update_detailed",
   },
   merchantConfig,
 ) => {
