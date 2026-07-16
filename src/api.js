@@ -112,7 +112,7 @@ export const updateProfile = async (payload) => {
 };
 
 export const connectInstagramSDK = async ({ accessToken, userID }) => {
-    const { data } = await axios.post(`/api/merchant/instagram/connect-sdk`,
+    const { data } = await axios.put(`/api/merchant/instagram/connect-sdk`,
         { accessToken, userID }
     );
     return data;

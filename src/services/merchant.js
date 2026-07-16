@@ -84,7 +84,12 @@ export const useConnectInstagramSDK = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: connectInstagramSDK,
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["instagram-config"] }),
+        onSuccess: (data) => {
+            toast.success(data.message);
+            queryClient.invalidateQueries({
+                queryKey: ["instagram-config"],
+            });
+        },
         onError: (err) => toast.error(err?.response?.data?.message || "Failed to connect Instagram"),
     });
 };
