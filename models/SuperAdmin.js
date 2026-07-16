@@ -26,7 +26,7 @@ const superAdminSchema = new mongoose.Schema(
         password: {
             type: String,
             required: true,
-            select: false, // Don't return password by default
+            // select: false, // Don't return password by default
         },
 
         isActive: {
