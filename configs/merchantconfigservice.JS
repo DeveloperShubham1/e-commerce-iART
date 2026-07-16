@@ -1,5 +1,9 @@
 import Merchant from "../models/Merchants.js";
 
+/**
+ * Loads a merchant's Instagram config, validating that both the
+ * merchant-specific fields and the platform-level env config are present.
+ */
 export async function loadMerchantConfig(merchantId) {
   const merchant = await Merchant.findById(merchantId).select(
     "instagram MerchantName",
@@ -17,20 +21,13 @@ export async function loadMerchantConfig(merchantId) {
     );
   }
 
-  if (
-    !ig.accessToken ||
-    !ig.pageAccessToken ||
-    !ig.igBusinessId ||
-    !ig.pageId ||
-    !ig.whatsappPhoneNumberId
-  ) {
+  if (!process.env.META_APP_ID || !process.env.META_APP_SECRET) {
     throw new Error(
-      `Merchant ${merchant.MerchantName} is missing required Instagram fields. ` +
-        `Ensure accessToken, pageAccessToken, igBusinessId, whatsappPhoneNumberId and pageId are saved.`,
+      "META_APP_ID or META_APP_SECRET missing from server config",
     );
   }
 
-  return buildConfig(ig);
+  return buildConfig(ig, merchant.MerchantName);
 }
 
 export function buildConfigFromMerchant(merchant) {
@@ -38,27 +35,56 @@ export function buildConfigFromMerchant(merchant) {
 
   if (!ig) {
     throw new Error(
-      `Merchant ${merchant?.MerchantName} has no instagram config`,
+      `Merchant ${merchant?.MerchantName} has no instagram complete config`,
     );
   }
 
-  return buildConfig(ig);
+  return buildConfig(ig, merchant?.MerchantName);
 }
 
-function buildConfig(ig) {
+/**
+ * appId / appSecret / graphApiVersion / verifyToken are platform-level
+ * (single shared Facebook App) and always come from env, never from the
+ * merchant document.
+ */
+function buildConfig(ig, merchantName = "Unknown Merchant") {
+  const requiredFields = [
+    { key: "accessToken", label: "accessToken" },
+    { key: "pageAccessToken", label: "pageAccessToken" },
+    { key: "igBusinessId", label: "igBusinessId" },
+    { key: "pageId", label: "pageId" },
+  ];
+
+  const missingFields = requiredFields.filter(
+    ({ key }) => ig[key] === undefined || ig[key] === null || ig[key] === "",
+  );
+
+  if (missingFields.length > 0) {
+    const missingFieldNames = missingFields.map(({ label }) => label).join(", ");
+    throw new Error(
+      `Merchant ${merchantName} is missing required Instagram fields: ${missingFieldNames}. Ensure these values are saved before continuing.`,
+    );
+  }
+
   return {
     accessToken: ig.accessToken,
     pageAccessToken: ig.pageAccessToken,
     igBusinessId: ig.igBusinessId,
     pageId: ig.pageId,
-    whatsappPhoneNumberId: ig.whatsappPhoneNumberId,
-    appId: ig.appId,
-    appSecret: ig.appSecret,
+    whatsappPhoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID, // whatsappPhoneNumberId: ig.whatsappPhoneNumberId, THIS MAY BE PER MERCHNAT
+    appId: process.env.META_APP_ID,
+    appSecret: process.env.META_APP_SECRET,
+    verifyToken: process.env.META_VERIFY_TOKEN,
     siteBaseUrl: ig.siteBaseUrl || "https://example.com",
-    graphApiVersion: ig.graphApiVersion || "v25.0",
+    graphApiVersion: process.env.META_GRAPH_VERSION || "v25.0",
   };
 }
 
+/**
+ * Persists merchant-specific Instagram fields only.
+ * appId / appSecret / verifyToken / graphApiVersion are intentionally
+ * excluded — those are platform-level and live in .env, not per merchant.
+ */
 export async function saveMerchantInstagramConfig(merchantId, fields) {
   const allowed = [
     "accessToken",
@@ -66,10 +92,6 @@ export async function saveMerchantInstagramConfig(merchantId, fields) {
     "igBusinessId",
     "whatsappPhoneNumberId",
     "pageId",
-    "appId",
-    "appSecret",
-    "verifyToken",
-    "graphApiVersion",
     "siteBaseUrl",
     "tokenExpiresAt",
     "isConnected",

@@ -72,11 +72,20 @@ async function makeFacebookGetRequest(endpoint, params = {}, mc) {
 
 // graph.facebook.com POST — uses accessToken
 // Confirmed working:
-//   DM:    POST /{PAGE_ID}/messages       → accessToken
+
 //   Reply: POST /{comment_id}/replies     → accessToken
 async function makeFacebookPostRequest(endpoint, body = {}, mc) {
   const response = await axios.post(`${fbBaseUrl(mc)}${endpoint}`, body, {
     params: { access_token: mc.accessToken },
+    timeout: 30000,
+  });
+  return response.data;
+}
+
+// for dm related endpoints, we need to use the pageAccessToken instead of the accessToken
+async function makeFacebookPostRequestDM(endpoint, body = {}, mc) {
+  const response = await axios.post(`${fbBaseUrl(mc)}${endpoint}`, body, {
+    params: { access_token: mc.pageAccessToken },
     timeout: 30000,
   });
   return response.data;
@@ -91,7 +100,8 @@ export async function fetchAccountDetails(mc) {
 export async function fetchMediaInsights(mediaId, mc) {
   try {
     const response = await axios.get(
-      `https://graph.facebook.com/${mc.graphApiVersion || GRAPH_API_VERSION
+      `https://graph.facebook.com/${
+        mc.graphApiVersion || GRAPH_API_VERSION
       }/${mediaId}/insights`,
       {
         params: {
@@ -292,25 +302,21 @@ export async function sendInstagramDM(commentId, text, mc) {
   }
   return withRetry(
     () =>
-      makeFacebookPostRequest(
+      makeFacebookPostRequestDM(
         `/${mc.pageId}/messages`,
         {
           recipient: { comment_id: commentId },
           message: { text },
         },
         mc,
+        mc.pageAccessToken, // Page token — required for this endpoint
       ),
     { retries: 3, baseDelayMs: 800 },
   );
 }
 
-
 export async function fetchFacebookPages(mc) {
-  const data = await makeFacebookGetRequest(
-    "/me/accounts",
-    {},
-    mc
-  );
+  const data = await makeFacebookGetRequest("/me/accounts", {}, mc);
 
   return data?.data || [];
 }
@@ -321,6 +327,6 @@ export async function fetchInstagramBusinessAccount(pageId, mc) {
     {
       fields: "instagram_business_account",
     },
-    mc
+    mc,
   );
 }

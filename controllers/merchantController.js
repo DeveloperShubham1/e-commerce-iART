@@ -522,7 +522,6 @@ export const getMerchantSettings = async (req, res) => {
 export async function getInstagramConfig(req, res) {
   let merchantId = req.merchant._id;
 
-  console.log("Fetching Instagram config for merchantId:", merchantId);
   try {
     const merchant = await Merchant.findById(merchantId).select(
       "MerchantName instagram",
@@ -535,27 +534,27 @@ export async function getInstagramConfig(req, res) {
     }
 
     const ig = merchant.instagram?.toObject() || {};
-    const appId = merchant.instagram?.appId || "";
-    const igBusinessId = merchant.instagram?.igBusinessId || merchant.instagram?.pageId || "";
-    const graphApiVersion = merchant.instagram?.graphApiVersion || "";
+    const appId = process.env.META_APP_ID || "";
+    const igBusinessId = merchant.instagram?.igBusinessId || "";
+    const graphApiVersion = process.env.META_GRAPH_VERSION || "v25.0";
     const tokenExpiresAt = merchant.instagram?.tokenExpiresAt || "";
     const isConnected = merchant.instagram?.isConnected || "";
     // if (ig.accessToken) ig.accessToken = maskToken(ig.accessToken);
     // if (ig.pageAccessToken) ig.pageAccessToken = maskToken(ig.pageAccessToken);
     // if (ig.appSecret) ig.appSecret = maskToken(ig.appSecret);
 
-
     // return res.json({
     //   success: true, instagram: ig
     // });
     return res.json({
-      success: true, instagram: {
+      success: true,
+      instagram: {
         appId,
         igBusinessId,
         graphApiVersion,
         tokenExpiresAt,
-        isConnected
-      }
+        isConnected,
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -973,8 +972,9 @@ export async function refreshInstagramToken(req, res) {
       });
     }
 
-    const appId = merchant.instagram?.appId;
-    const appSecret = merchant.instagram?.appSecret;
+    const appId = process.env.META_APP_ID || merchant.instagram?.appId;
+    const appSecret =
+      process.env.META_APP_SECRET || merchant.instagram?.appSecret;
 
     if (!appId || !appSecret) {
       return res.status(500).json({
@@ -1036,17 +1036,164 @@ export async function refreshInstagramToken(req, res) {
   }
 }
 
-// PUT /api/merchant/:merchantId/instagram/connect-sdk
+async function refreshAndPersistInstagramToken(merchantId, instagram) {
+  const currentToken = instagram?.accessToken;
+
+  if (!currentToken) {
+    throw new Error("No Instagram access token available to refresh.");
+  }
+
+  const appId = process.env.META_APP_ID;
+  const appSecret = process.env.META_APP_SECRET;
+
+  if (!appId || !appSecret) {
+    throw new Error("APP_ID or APP_SECRET missing from server config");
+  }
+
+  const graphApiVersion = process.env.META_GRAPH_VERSION || "v25.0";
+
+  const refreshRes = await axios.get(
+    `https://graph.facebook.com/${graphApiVersion}/oauth/access_token`,
+    {
+      params: {
+        grant_type: "fb_exchange_token",
+        client_id: appId,
+        client_secret: appSecret,
+        fb_exchange_token: currentToken,
+      },
+      timeout: 15000,
+    },
+  );
+
+  const { access_token, expires_in } = refreshRes.data;
+
+  if (!access_token) {
+    const err = new Error("Meta did not return a new token");
+    err.meta_response = refreshRes.data;
+    throw err;
+  }
+
+  const expirySeconds = expires_in || 60 * 24 * 60 * 60;
+  const tokenExpiresAt = new Date(Date.now() + expirySeconds * 1000);
+
+  const updatedMerchant = await Merchant.findByIdAndUpdate(
+    merchantId,
+    {
+      $set: {
+        "instagram.accessToken": access_token,
+        "instagram.tokenExpiresAt": tokenExpiresAt,
+        "instagram.isConnected": true,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).select("MerchantName instagram");
+
+  return updatedMerchant;
+}
+
+// export async function updateInstagramConnectSdk(req, res) {
+//   try {
+//     const {
+//       accessToken,
+//       appSecret,
+//       verifyToken,
+//       graphApiVersion = "v25.0",
+//       siteBaseUrl,
+//       appId,
+//       InstagramAppSecret,
+//       whatsappPhoneNumberId,
+//     } = req.body;
+
+//     if (!accessToken) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Access Token is required",
+//       });
+//     }
+
+//     const merchantId = req.merchant._id;
+
+//     const merchantConfig = {
+//       accessToken,
+//       graphApiVersion,
+//     };
+
+//     const pages = await fetchFacebookPages(merchantConfig);
+
+//     if (!pages.length) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "No Facebook Pages found.",
+//       });
+//     }
+
+//     const page = pages[0];
+//     const pageId = page.id;
+//     const pageAccessToken = page.access_token;
+
+//     const igResponse = await fetchInstagramBusinessAccount(pageId, {
+//       ...merchantConfig,
+//       pageAccessToken,
+//     });
+
+//     const igBusinessId = igResponse?.instagram_business_account?.id || "";
+
+//     const update = {
+//       "instagram.accessToken": accessToken,
+//       "instagram.pageAccessToken": pageAccessToken,
+//       "instagram.pageId": pageId,
+//       "instagram.igBusinessId": igBusinessId,
+//       "instagram.graphApiVersion": graphApiVersion,
+//     };
+
+//     if (siteBaseUrl) update["instagram.siteBaseUrl"] = siteBaseUrl.trim();
+
+//     await Merchant.findByIdAndUpdate(
+//       merchantId,
+//       { $set: update },
+//       { new: true, runValidators: true },
+//     );
+
+//     let tokenExpiresAt = null;
+//     try {
+//       const merchantAfterSave =
+//         await Merchant.findById(merchantId).select("instagram");
+//       const refreshed = await refreshAndPersistInstagramToken(
+//         merchantId,
+//         merchantAfterSave.instagram,
+//       );
+//       tokenExpiresAt = refreshed.instagram.tokenExpiresAt;
+//     } catch (refreshErr) {
+//       console.error(
+//         "Instagram connected, but initial token refresh failed:",
+//         refreshErr,
+//       );
+//     }
+
+//     return res.json({
+//       success: true,
+//       message: "Instagram connected successfully.",
+//       data: { tokenExpiresAt },
+//     });
+//   } catch (err) {
+//     console.error(err);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//     });
+//   }
+// }
 export async function updateInstagramConnectSdk(req, res) {
   try {
     const {
       accessToken,
-      appSecret,
       verifyToken,
-      graphApiVersion = "v25.0",
+      graphApiVersion = process.env.META_GRAPH_VERSION || "v25.0",
       siteBaseUrl,
-      appId,
-      InstagramAppSecret,
       whatsappPhoneNumberId,
     } = req.body;
 
@@ -1057,17 +1204,56 @@ export async function updateInstagramConnectSdk(req, res) {
       });
     }
 
+    if (!process.env.META_APP_ID || !process.env.META_APP_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: "META_APP_ID or META_APP_SECRET missing from server config",
+      });
+    }
+
     const merchantId = req.merchant._id;
 
-    // Temporary config for Graph API calls
+    /**
+     * STEP 1: Exchange the incoming (possibly short-lived) user token for
+     * a long-lived one FIRST. Page tokens inherit their lifetime from the
+     * user token they're derived from — so this must happen before we
+     * call /me/accounts, or the resulting pageAccessToken will also be
+     * short-lived.
+     */
+    const exchangeRes = await axios.get(
+      `https://graph.facebook.com/${graphApiVersion}/oauth/access_token`,
+      {
+        params: {
+          grant_type: "fb_exchange_token",
+          client_id: process.env.META_APP_ID,
+          client_secret: process.env.META_APP_SECRET,
+          fb_exchange_token: accessToken,
+        },
+        timeout: 15000,
+      },
+    );
+
+    const longLivedUserToken = exchangeRes.data?.access_token;
+
+    if (!longLivedUserToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Failed to exchange token for a long-lived version.",
+        meta_response: exchangeRes.data,
+      });
+    }
+
+    const expirySeconds = exchangeRes.data.expires_in || 60 * 24 * 60 * 60;
+    const tokenExpiresAt = new Date(Date.now() + expirySeconds * 1000);
+
     const merchantConfig = {
-      accessToken,
+      accessToken: longLivedUserToken, // ← now long-lived
       graphApiVersion,
     };
 
     /**
-     * STEP 1
-     * Fetch Facebook Pages
+     * STEP 2: Fetch Facebook Pages — pageAccessToken is now derived from
+     * the long-lived user token, so it inherits that long lifetime too.
      */
     const pages = await fetchFacebookPages(merchantConfig);
 
@@ -1079,71 +1265,59 @@ export async function updateInstagramConnectSdk(req, res) {
     }
 
     const page = pages[0];
-
     const pageId = page.id;
     const pageAccessToken = page.access_token;
 
     /**
-     * STEP 2
-     * Fetch Instagram Business Account
+     * STEP 3: Fetch Instagram Business Account
      */
     const igResponse = await fetchInstagramBusinessAccount(pageId, {
       ...merchantConfig,
       pageAccessToken,
     });
 
-    const igBusinessId =
-      igResponse?.instagram_business_account?.id || "";
+    const igBusinessId = igResponse?.instagram_business_account?.id || "";
 
     /**
-     * STEP 3
-     * Save everything
+     * STEP 4: Save everything — including the long-lived token + expiry
+     * directly, no separate refresh call needed on connect.
      */
     const update = {
-      "instagram.accessToken": accessToken,
+      "instagram.accessToken": longLivedUserToken,
       "instagram.pageAccessToken": pageAccessToken,
       "instagram.pageId": pageId,
       "instagram.igBusinessId": igBusinessId,
       "instagram.graphApiVersion": graphApiVersion,
+      "instagram.tokenExpiresAt": tokenExpiresAt,
+      "instagram.isConnected": true,
     };
 
-    if (appSecret)
-      update["instagram.appSecret"] = appSecret.trim();
-
-    if (verifyToken)
-      update["instagram.verifyToken"] = verifyToken.trim();
-
-    if (siteBaseUrl)
-      update["instagram.siteBaseUrl"] = siteBaseUrl.trim();
-
-    if (appId)
-      update["instagram.appId"] = appId.trim();
-
-    if (InstagramAppSecret)
-      update["instagram.InstagramAppSecret"] =
-        InstagramAppSecret.trim();
-
+    if (verifyToken) update["instagram.verifyToken"] = verifyToken.trim();
+    if (siteBaseUrl) update["instagram.siteBaseUrl"] = siteBaseUrl.trim();
     if (whatsappPhoneNumberId)
-      update["instagram.whatsappPhoneNumberId"] =
-        whatsappPhoneNumberId.trim();
+      update["instagram.whatsappPhoneNumberId"] = whatsappPhoneNumberId.trim();
 
-    const merchant = await Merchant.findByIdAndUpdate(
+    await Merchant.findByIdAndUpdate(
       merchantId,
-      {
-        $set: update,
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    ).select("MerchantName instagram");
+      { $set: update },
+      { new: true, runValidators: true },
+    );
 
     return res.json({
       success: true,
       message: "Instagram connected successfully.",
+      data: { tokenExpiresAt },
     });
   } catch (err) {
     console.error(err);
+
+    if (err.response?.data) {
+      return res.status(err.response.status || 500).json({
+        success: false,
+        message: "Failed to connect Instagram account",
+        meta_response: err.response.data,
+      });
+    }
 
     return res.status(500).json({
       success: false,
