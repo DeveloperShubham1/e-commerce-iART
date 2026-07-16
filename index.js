@@ -17,6 +17,7 @@ import subCategoryRoutes from "./routes/subCategoryRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
 import adminRoutes from "./routes/instaProductRoutes.js";
 import instagramRouter from "./routes/instagramRoute.js";
+import superAdminRouter from "./routes/superAdminRoutes.js";
 import morgan from "morgan";
 
 const app = express();
@@ -58,6 +59,7 @@ app.use("/api/cart", cartRouter);
 app.use("/api/cart/guest", guestRouter);
 app.use("/api/ig", instagramRouter);
 app.use("/api", adminRoutes);
+app.use("/api/superadmin", superAdminRouter);
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
