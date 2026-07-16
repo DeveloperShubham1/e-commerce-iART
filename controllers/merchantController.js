@@ -535,11 +535,28 @@ export async function getInstagramConfig(req, res) {
     }
 
     const ig = merchant.instagram?.toObject() || {};
+    const appId = merchant.instagram?.appId || "";
+    const igBusinessId = merchant.instagram?.igBusinessId || merchant.instagram?.pageId || "";
+    const graphApiVersion = merchant.instagram?.graphApiVersion || "";
+    const tokenExpiresAt = merchant.instagram?.tokenExpiresAt || "";
+    const isConnected = merchant.instagram?.isConnected || "";
     // if (ig.accessToken) ig.accessToken = maskToken(ig.accessToken);
     // if (ig.pageAccessToken) ig.pageAccessToken = maskToken(ig.pageAccessToken);
     // if (ig.appSecret) ig.appSecret = maskToken(ig.appSecret);
 
-    return res.json({ success: true, instagram: ig });
+
+    // return res.json({
+    //   success: true, instagram: ig
+    // });
+    return res.json({
+      success: true, instagram: {
+        appId,
+        igBusinessId,
+        graphApiVersion,
+        tokenExpiresAt,
+        isConnected
+      }
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -1073,7 +1090,7 @@ export async function updateInstagramConnectSdk(req, res) {
     const igResponse = await fetchInstagramBusinessAccount(pageId, {
       ...merchantConfig,
       pageAccessToken,
-    });    
+    });
 
     const igBusinessId =
       igResponse?.instagram_business_account?.id || "";
