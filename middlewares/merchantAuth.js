@@ -17,7 +17,7 @@ const authMerchant = async (req, res, next) => {
 
     //Fetch merchant using decoded.merchantId
     const merchant = await Merchants.findById(decoded.merchantId).select(
-      "-password -instagram",
+      "-password -instagram -razorpaySecret -razorpayKey",
     );
 
     if (!merchant) {

@@ -183,7 +183,8 @@ export const placeOrder = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params; // Mongo _id
-    const { paymentStatus, orderStatus, status, isPaid } = req.body;
+    const { paymentStatus, orderStatus, status, isPaid, trackingPartner } =
+      req.body;
 
     if (!orderId) {
       return res.status(400).json({
@@ -239,6 +240,7 @@ export const updateOrderStatus = async (req, res) => {
     if (paymentStatus) updateFields.paymentStatus = paymentStatus;
     if (orderStatus) updateFields.orderStatus = orderStatus;
     if (status) updateFields.status = status;
+    if (trackingPartner) updateFields.trackingPartner = trackingPartner;
     if (typeof isPaid === "boolean") updateFields.isPaid = isPaid;
 
     updateFields.updatedAt = new Date();
@@ -251,8 +253,6 @@ export const updateOrderStatus = async (req, res) => {
     ).populate({
       path: "address",
     });
-
-    console.log("Updated Order:", updatedOrder);
 
     const merchantConfig = await loadMerchantConfig(updatedOrder.merchantId);
 
