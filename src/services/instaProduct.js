@@ -8,6 +8,8 @@ import {
     deleteInstagramProduct,
     getInstagramPosts
 } from "../api";
+import { useEffect } from "react";
+import { toast } from "react-toastify";
 
 
 // Create Mapping
@@ -61,9 +63,28 @@ export const useDeleteInstagramProduct = () => {
 };
 
 export const useInstagramPosts = () => {
-    return useQuery({
+    const query = useQuery({
         queryKey: ["instagram-posts"],
         queryFn: getInstagramPosts,
         refetchInterval: 5 * 60 * 1000,
     });
+
+    useEffect(() => {
+        if (query.isSuccess) {
+            console.log("Data: ", query.data);
+            toast.success(query.data?.message);
+        }
+    }, [query.isSuccess, query.data]);
+
+    useEffect(() => {
+        if (query.isError) {
+            console.log("Error: ", query.error);
+            toast.error(
+                query.error?.response?.data?.message ||
+                "Failed to load Instagram posts."
+            );
+        }
+    }, [query.isError, query.error]);
+
+    return query;
 };

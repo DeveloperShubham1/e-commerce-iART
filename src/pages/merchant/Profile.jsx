@@ -54,33 +54,33 @@ export default function Profile() {
   const [connectError, setConnectError] = useState(null);
 
   const [form, setForm] = useState({
-    accessToken: "",
-    pageAccessToken: "",
-    igBusinessId: "",
-    pageId: "",
-    appId: "",
-    appSecret: "",
-    verifyToken: "",
-    graphApiVersion: "v25.0",
+    // accessToken: "",
+    // pageAccessToken: "",
+    // igBusinessId: "",
+    // pageId: "",
+    // appId: "",
+    // appSecret: "",
+    // verifyToken: "",
+    // graphApiVersion: "v25.0",
     siteBaseUrl: "",
-    InstagramAppSecret: "",
-    whatsappPhoneNumberId: "",
+    // InstagramAppSecret: "",
+    // whatsappPhoneNumberId: "",
   });
 
   useEffect(() => {
     if (data?.instagram) {
       setForm({
-        accessToken: data.instagram.accessToken || "",
-        pageAccessToken: data.instagram.pageAccessToken || "",
-        igBusinessId: data.instagram.igBusinessId || "",
-        pageId: data.instagram.pageId || "",
-        appId: data.instagram.appId || "",
-        appSecret: data.instagram.appSecret || "",
-        verifyToken: data.instagram.verifyToken || "",
-        graphApiVersion: data.instagram.graphApiVersion || "v25.0",
+        // accessToken: data.instagram.accessToken || "",
+        // pageAccessToken: data.instagram.pageAccessToken || "",
+        // igBusinessId: data.instagram.igBusinessId || "",
+        // pageId: data.instagram.pageId || "",
+        // appId: data.instagram.appId || "",
+        // appSecret: data.instagram.appSecret || "",
+        // verifyToken: data.instagram.verifyToken || "",
+        // graphApiVersion: data.instagram.graphApiVersion || "v25.0",
         siteBaseUrl: data.instagram.siteBaseUrl || "",
-        InstagramAppSecret: data.instagram.InstagramAppSecret || "",
-        whatsappPhoneNumberId: data.instagram.whatsappPhoneNumberId || "",
+        // InstagramAppSecret: data.instagram.InstagramAppSecret || "",
+        // whatsappPhoneNumberId: data.instagram.whatsappPhoneNumberId || "",
       });
     }
   }, [data]);
@@ -256,6 +256,41 @@ export default function Profile() {
           <p className="text-sm text-red-700">{connectError}</p>
         </div>
       )}
+
+      {/* Configuration form */}
+      <div className="mb-5 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900">Configuration</h2>
+        {instagram?.isConnected && (
+          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500">
+            Advanced
+          </span>
+        )}
+      </div>
+
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <label className="mb-2 block text-sm font-medium text-gray-700">
+           Site Base URL
+          </label>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              type="text"
+              name="siteBaseUrl"
+              value={form.siteBaseUrl}
+              onChange={handleChange}
+              placeholder="Website URL"
+              className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              disabled={updateMutation.isPending}
+              className="w-full rounded-xl bg-indigo-600 px-8 py-3 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60 sm:w-auto"
+            >
+              {updateMutation.isPending ? "Saving…" : "Save configuration"}
+            </button>
+          </div>
+        </div>
+
+      </form>
     </div>
   );
 }

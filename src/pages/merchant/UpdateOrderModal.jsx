@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
+import { courierPartners } from "../../assets/trackingPartners";
 
 const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
   const [editable, setEditable] = useState({
@@ -9,6 +10,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
     status: order.status,
     isPaid: order.isPaid,
     paymentType: order.paymentType,
+    trackingPartner: order.trackingPartner || "",
   });
 
   const handleChange = (field, value) => {
@@ -22,6 +24,14 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
       (!editable.status || editable.status.trim() === "")
     ) {
       toast.error("Tracking ID is required when order is shipped");
+      return;
+    }
+
+    if (
+      editable.orderStatus === "shipped" &&
+      (!editable.trackingPartner || editable.trackingPartner.trim() === "")
+    ) {
+      toast.error("Tracking Partner is required when order is shipped");
       return;
     }
 
@@ -106,7 +116,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
               <p>
                 {order.address.firstName} {order.address.lastName}
               </p>
-              <p>{order.address.street}</p>
+              <p>{order?.address?.street}, {order?.address?.landmark}</p>
               <p>
                 {order.address.city}, {order.address.state} -{" "}
                 {order.address.zipcode}
@@ -163,34 +173,67 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
             {(editable.orderStatus === "shipped" ||
               editable.orderStatus === "delivered" ||
               editable.orderStatus === "cancelled") && (
-              <div>
-                <label className="font-semibold">
-                  Tracking ID
-                  {editable.orderStatus === "shipped" && (
-                    <span className="text-red-500 ml-1">*</span>
-                  )}
-                </label>
+                <div>
+                  <label className="font-semibold">
+                    Tracking ID
+                    {editable.orderStatus === "shipped" && (
+                      <span className="text-red-500 ml-1">*</span>
+                    )}
+                  </label>
 
-                <input
-                  type="text"
-                  className={`w-full border p-2 rounded ${
-                    editable.orderStatus === "shipped" &&
-                    (!editable.status || editable.status.trim() === "")
+                  <input
+                    type="text"
+                    className={`w-full border p-2 rounded ${editable.orderStatus === "shipped" &&
+                      (!editable.status || editable.status.trim() === "")
                       ? "border-red-500"
                       : ""
-                  }`}
-                  value={editable.status || ""}
-                  onChange={(e) => handleChange("status", e.target.value)}
-                />
+                      }`}
+                    value={editable.status || ""}
+                    onChange={(e) => handleChange("status", e.target.value)}
+                  />
 
-                {editable.orderStatus === "shipped" &&
-                  (!editable.status || editable.status.trim() === "") && (
+                  {editable.orderStatus === "shipped" &&
+                    (!editable.status || editable.status.trim() === "") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Tracking ID is required for shipped orders
+                      </p>
+                    )}
+                </div>
+              )}
+
+            {/* Tracking Partner */}
+            {(editable.orderStatus === "shipped" ||
+              editable.orderStatus === "delivered" ||
+              editable.orderStatus === "cancelled") && (
+                <div>
+                  <label className="font-semibold">
+                    Tracking Partner
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
+
+                  <select
+                    className={`w-full border p-2 rounded ${(!editable.trackingPartner || editable.trackingPartner.trim() === "")
+                      ? "border-red-500"
+                      : ""
+                      }`}
+                    value={editable.trackingPartner || ""}
+                    onChange={(e) => handleChange("trackingPartner", e.target.value)}
+                  >
+                    <option value="">Select Tracking Partner</option>
+                    {courierPartners.map((partner) => (
+                      <option key={partner.value} value={partner.value}>
+                        {partner.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {(!editable.trackingPartner || editable.trackingPartner.trim() === "") && (
                     <p className="text-xs text-red-500 mt-1">
-                      Tracking ID is required for shipped orders
+                      Tracking Partner is required for shipped orders
                     </p>
                   )}
-              </div>
-            )}
+                </div>
+              )}
 
             {/* Is Paid */}
             {/* {editable.paymentType != "online" && (
@@ -220,14 +263,15 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
               onClick={handleUpdate}
               disabled={
                 editable.orderStatus === "shipped" &&
-                (!editable.status || editable.status.trim() === "")
+                ((!editable.status || editable.status.trim() === "") ||
+                  (!editable.trackingPartner || editable.trackingPartner.trim() === ""))
               }
-              className={`py-2 px-6 rounded-md text-white ${
-                editable.orderStatus === "shipped" &&
-                (!editable.status || editable.status.trim() === "")
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-indigo-600 hover:bg-indigo-700"
-              }`}
+              className={`py-2 px-6 rounded-md text-white ${editable.orderStatus === "shipped" &&
+                ((!editable.status || editable.status.trim() === "") ||
+                  (!editable.trackingPartner || editable.trackingPartner.trim() === ""))
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-indigo-600 hover:bg-indigo-700"
+                }`}
             >
               Save Changes
             </button>

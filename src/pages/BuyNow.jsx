@@ -237,7 +237,7 @@ const BuyNow = () => {
           <div className="mt-2 p-3 bg-white border rounded flex justify-between">
             <p className="text-sm">
               {selectedAddress
-                ? `${selectedAddress.street}, ${selectedAddress.city}, ${selectedAddress.state}, ${selectedAddress.zipcode},
+                ? `${selectedAddress.street}, ${selectedAddress.city}, ${selectedAddress.state},${selectedAddress?.landmark ? selectedAddress?.landmark + "," : ""} ${selectedAddress.zipcode},
                   ${selectedAddress.phone}`
                 : "No address selected"}
             </p>
@@ -260,7 +260,7 @@ const BuyNow = () => {
                   }}
                   className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                 >
-                  {addr.street}, {addr.city},{addr.state},{addr.zipcode},
+                  {addr.street}, {addr.city},{addr.state},{addr?.landmark},{addr.zipcode},
                   {addr.phone}
                 </div>
               ))}

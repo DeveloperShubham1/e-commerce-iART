@@ -5,8 +5,8 @@ import { useAppContext } from "../../context/AppContext";
 import { X, Upload, Image as ImageIcon, Plus, Trash2 } from "lucide-react";
 import ntc from "@trihargianto/ntcjs";
 
-const emptySize = () => ({
-  size: "",
+const emptySize = (sizeName = "") => ({
+  size: sizeName,
   stock: "",
   price: "",
   offerPrice: "",
@@ -20,7 +20,12 @@ const emptyVariant = () => ({
   images: [],
   imageKeys: [],
   thumbnailIndex: 0,
-  sizes: [emptySize()],
+  sizes: [
+    emptySize("XS"),
+    emptySize("S"),
+    emptySize("M"),
+    emptySize("L"),
+  ],
   isTrending: false,
   trendingOrder: null,
 });
@@ -549,11 +554,10 @@ export default function AddProductVariants() {
                               return (
                                 <div
                                   key={fIdx}
-                                  className={`relative group cursor-pointer border-2 rounded-lg ${
-                                    isThumb
-                                      ? "border-blue-600"
-                                      : "border-gray-200"
-                                  }`}
+                                  className={`relative group cursor-pointer border-2 rounded-lg ${isThumb
+                                    ? "border-blue-600"
+                                    : "border-gray-200"
+                                    }`}
                                   onClick={() =>
                                     updateVariant(vIdx, {
                                       thumbnailIndex: fIdx,
@@ -610,22 +614,27 @@ export default function AddProductVariants() {
                               key={sIdx}
                               className="grid grid-cols-12 gap-3 items-center bg-white p-4 rounded-xl border"
                             >
-                              <select
-                                value={size.size}
-                                onChange={(e) =>
-                                  updateSize(vIdx, sIdx, {
-                                    size: e.target.value,
-                                  })
-                                }
+                                <select
+                                  value={size.size}
+                                  onChange={(e) =>
+                                    updateSize(vIdx, sIdx, {
+                                      size: e.target.value,
+                                    })
+                                  }
                                 className="col-span-2 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                              >
-                                <option value="">Select Size</option>
-                                {menTopSizes.map((s) => (
-                                  <option key={s} value={s}>
-                                    {s}
-                                  </option>
-                                ))}
-                              </select>
+                                >
+                                  <option value="">Select Size</option>
+                                  {menTopSizes.map((s) => {
+                                    const isAlreadySelected = variant.sizes.some(
+                                      (sz, idx) => idx !== sIdx && sz.size === s
+                                    );
+                                    return (
+                                      <option key={s} value={s} disabled={isAlreadySelected}>
+                                        {s}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
 
                               <input
                                 type="number"

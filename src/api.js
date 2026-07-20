@@ -44,8 +44,12 @@ export const deleteInstagramProduct = async (mediaId) => {
 
 
 export const getInstagramPosts = async () => {
-    const { data } = await axios.get("/api/ig/posts");
-    return data;
+    try {
+        const { data } = await axios.get("/api/ig/posts");
+        return data;
+    } catch (err) {
+        throw err;
+    }
 };
 
 // Get Product List

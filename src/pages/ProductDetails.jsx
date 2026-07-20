@@ -5,6 +5,7 @@ import { assets } from "../assets/assets";
 import ProductCard from "../components/ProductCard";
 import { exchangeInstagramToken } from "../api";
 import { toast } from "react-toastify";
+import SizeChartDialog from "../components/Sizechartdialog";
 
 const ProductDetails = () => {
   const { products, navigate, currency, addToCart, cartItems, fetchUser } =
@@ -230,9 +231,11 @@ const ProductDetails = () => {
             </div>
           </div>
 
-          {/* ---------------- SIZE ---------------- */}
           <div>
-            <p className="font-medium">Select Size</p>
+            <div className="flex items-center gap-4">
+              <p className="font-medium">Select Size</p>
+              <SizeChartDialog />
+            </div>
             <div className="flex gap-2 mt-2 flex-wrap">
               {selectedVariant?.sizes.map((s) => (
                 <button

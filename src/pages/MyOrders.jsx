@@ -120,7 +120,7 @@ const MyOrders = () => {
               {/* ================= TRACKING ================= */}
               <div className="mb-8">
                 <h3 className="text-lg font-semibold mb-6">
-                  Order Tracking (Tracking ID: {order.trackingId || "N/A"})
+                  Order Tracking (Tracking ID: {order?.status || "N/A"})
                 </h3>
 
                 {isCancelled ? (
