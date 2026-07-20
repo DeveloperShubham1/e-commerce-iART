@@ -33,6 +33,7 @@ import ReportPage from "./components/merchant/ReportPage";
 import Instagramproductspage from "./pages/merchant/Instagramproductspage";
 import Profile from "./pages/merchant/Profile";
 import ProfilePage from "./pages/UserProfile";
+import ExistProfile from "./pages/merchant/ExistProfile";
 
 
 const BUILD_TYPE = import.meta.env.VITE_BUILD_TYPE; // user | merchant
@@ -160,7 +161,8 @@ const App = () => {
                 <Route path="settings" element={<MerchantSettingsPage />} />
                 <Route path="report" element={<ReportPage />} />
                 <Route path="instagram-products" element={<Instagramproductspage />} />
-                <Route path="profile" element={<Profile />} />
+                <Route path="profile" element={<ExistProfile />} />
+                {/* <Route path="profile" element={<Profile />} /> */}
               </Route>
             )}
 
