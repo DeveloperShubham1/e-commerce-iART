@@ -96,8 +96,6 @@ export const uploadFilesToS3 = async (req, res) => {
       // ✅ Detect real file type from bytes (mimetype from the client can lie/be missing)
       const detectedType = await fileTypeFromBuffer(fileBuffer);
 
-      console.log("sdsdsd", detectedType);
-
       const isHeic =
         detectedType?.mime === "image/heic" ||
         detectedType?.mime === "image/heif" ||
@@ -210,6 +208,52 @@ export const deleteMultipleFromS3 = async (req, res) => {
   }
 };
 
+// export const modifyFileOnS3 = async (req, res) => {
+//   try {
+//     const { oldKey } = req.body;
+//     const newFile = req.file;
+
+//     if (!oldKey || !newFile)
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Old key or new file missing" });
+
+//     // Delete old file first
+//     await s3Client.send(
+//       new DeleteObjectCommand({
+//         Bucket: bucketName,
+//         Key: oldKey,
+//       }),
+//     );
+
+//     // Upload new file
+//     const fileBuffer = await sharp(newFile.buffer)
+//       .resize({ height: 1920, width: 1080, fit: "contain" })
+//       .toBuffer();
+
+//     const newFileName = generateFileName();
+
+//     const uploadParams = {
+//       Bucket: bucketName,
+//       Key: newFileName,
+//       Body: fileBuffer,
+//       ContentType: newFile.mimetype,
+//     };
+
+//     await s3Client.send(new PutObjectCommand(uploadParams));
+
+//     res.json({
+//       success: true,
+//       message: "File replaced successfully",
+//       newKey: newFileName,
+//       newUrl: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${newFileName}`,
+//     });
+//   } catch (error) {
+//     console.error("Modify error:", error);
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
 export const modifyFileOnS3 = async (req, res) => {
   try {
     const { oldKey } = req.body;
@@ -220,35 +264,78 @@ export const modifyFileOnS3 = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Old key or new file missing" });
 
-    // Delete old file first
-    await s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: bucketName,
-        Key: oldKey,
-      }),
-    );
+    let fileBuffer = newFile.buffer;
+    let mimetype = newFile.mimetype;
+    let extension = null; // only set when we override the original extension
 
-    // Upload new file
-    const fileBuffer = await sharp(newFile.buffer)
-      .resize({ height: 1920, width: 1080, fit: "contain" })
-      .toBuffer();
+    // ✅ Detect real file type from bytes (client mimetype can lie/be missing)
+    const detectedType = await fileTypeFromBuffer(fileBuffer);
+
+    const isHeic =
+      detectedType?.mime === "image/heic" ||
+      detectedType?.mime === "image/heif" ||
+      mimetype === "image/heic" ||
+      mimetype === "image/heif";
+
+    if (isHeic) {
+      try {
+        fileBuffer = await convert({
+          buffer: fileBuffer,
+          format: "JPEG",
+          quality: 0.9,
+        });
+        mimetype = "image/jpeg";
+        extension = "jpg";
+      } catch (conversionError) {
+        console.error("HEIC conversion error:", conversionError);
+        return res.status(400).json({
+          success: false,
+          message: `Failed to convert HEIC/HEIF file: ${newFile.originalname}`,
+        });
+      }
+    }
+
+    // ✅ Only resize raster images (skip SVG, run after any HEIC conversion)
+    if (mimetype !== "image/svg+xml" && mimetype.startsWith("image/")) {
+      fileBuffer = await sharp(fileBuffer)
+        .resize({ height: 1920, width: 1080, fit: "contain" })
+        .toBuffer();
+    }
 
     const newFileName = generateFileName();
+    const newKey = extension ? `${newFileName}.${extension}` : newFileName;
 
     const uploadParams = {
       Bucket: bucketName,
-      Key: newFileName,
+      Key: newKey,
       Body: fileBuffer,
-      ContentType: newFile.mimetype,
+      ContentType: mimetype,
     };
 
+    // ✅ Upload the new file FIRST, delete the old one only after the
+    // upload succeeds. If we deleted first (as before) and the upload
+    // then failed, you'd be left with neither file.
     await s3Client.send(new PutObjectCommand(uploadParams));
+
+    try {
+      await s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: bucketName,
+          Key: oldKey,
+        }),
+      );
+    } catch (deleteError) {
+      // New file is already live at this point — don't fail the whole
+      // request just because cleanup of the old file failed. Log it so
+      // it can be cleaned up manually / by a periodic job.
+      console.error(`Failed to delete old file (${oldKey}):`, deleteError);
+    }
 
     res.json({
       success: true,
       message: "File replaced successfully",
-      newKey: newFileName,
-      newUrl: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${newFileName}`,
+      newKey,
+      newUrl: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${newKey}`,
     });
   } catch (error) {
     console.error("Modify error:", error);

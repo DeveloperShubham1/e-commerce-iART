@@ -3,6 +3,7 @@ import authMerchant from "../middlewares/merchantAuth.js";
 import authUser from "../middlewares/authUser.js";
 import {
   placeOrder,
+  placeUpiOrder,
   verifyPayment,
   getAllOrdersByMerchant,
   getOrdersByMerchantAndPhone,
@@ -18,6 +19,8 @@ import {
 const router = express.Router();
 // COD
 router.post("/place", authUser, placeOrder);
+
+router.post("/upi", authUser, placeUpiOrder);
 
 // update order state
 router.put("/update/:orderId", authMerchant, updateOrderStatus);
@@ -46,4 +49,3 @@ router.get("/report/top-products", authMerchant, getTopSellingProducts);
 router.get("/report/payment-analytics", authMerchant, getPaymentAnalytics);
 
 export default router;
-  

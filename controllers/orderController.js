@@ -30,7 +30,7 @@ const generateOrderId = () => {
 export const placeOrder = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { merchantId, items, address } = req.body;
+    const { merchantId, items, address, paymentImage = [] } = req.body;
 
     if (!merchantId || !items?.length || !address) {
       return res.status(400).json({
@@ -52,6 +52,13 @@ export const placeOrder = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Address not found",
+      });
+    }
+
+    if (!Array.isArray(paymentImage)) {
+      return res.status(400).json({
+        success: false,
+        message: "paymentImage must be an array of image URLs.",
       });
     }
 
@@ -144,6 +151,7 @@ export const placeOrder = async (req, res) => {
       paymentType: "cod",
       paymentStatus: "pending",
       orderStatus: "pending",
+      paymentImage,
     });
 
     // ✅ CLEAR CART AFTER ORDER SUCCESS
@@ -180,11 +188,297 @@ export const placeOrder = async (req, res) => {
   }
 };
 
+// ================= CREATE UPI ORDER ================= //
+
+export const placeUpiOrder = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { merchantId, items, address, paymentImage = [] } = req.body;
+
+    if (!merchantId || !items?.length || !address) {
+      return res.status(400).json({
+        success: false,
+        message: "merchantId, items and address are required",
+      });
+    }
+
+    if (!Array.isArray(paymentImage)) {
+      return res.status(400).json({
+        success: false,
+        message: "paymentImage must be an array of image URLs.",
+      });
+    }
+
+    if (paymentImage.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "A payment screenshot is required for UPI orders",
+      });
+    }
+
+    const merchant = await Merchants.findById(merchantId);
+    if (!merchant) {
+      return res.status(404).json({
+        success: false,
+        message: "Merchant not found",
+      });
+    }
+
+    if (!merchant.upi?.enabled) {
+      return res.status(400).json({
+        success: false,
+        message: "UPI payment is not available for this merchant",
+      });
+    }
+
+    const addressInfo = await Address.findById(address);
+    if (!addressInfo) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found",
+      });
+    }
+
+    const canManageStock =
+      merchant.isSubscribed && merchant.features?.stockManagement;
+
+    let totalAmount = 0;
+    const itemDetails = [];
+
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: "Product not found",
+        });
+      }
+
+      if (product.merchantId.toString() !== merchantId.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: `${product.name} does not belong to this merchant`,
+        });
+      }
+
+      const variant = product.variants.find(
+        (v) => v._id.toString() === item.variantId,
+      );
+
+      if (!variant) {
+        return res.status(400).json({
+          success: false,
+          message: "Variant not found",
+        });
+      }
+
+      const sizeObj = variant.sizes.find((s) => s.size === item.size);
+      if (!sizeObj) {
+        return res.status(400).json({
+          success: false,
+          message: `Size ${item.size} not available`,
+        });
+      }
+
+      if (canManageStock && sizeObj.stock < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          message: `Only ${sizeObj.stock} items left for ${product.name}`,
+        });
+      }
+
+      const mrp = sizeObj.price;
+      const discountPercent = sizeObj.offerPrice || 0;
+      const discountedPrice = mrp - Math.round((mrp * discountPercent) / 100);
+
+      totalAmount += discountedPrice * item.quantity;
+
+      itemDetails.push({
+        productId: product._id,
+        variantId: variant._id,
+        size: item.size,
+        quantity: item.quantity,
+        mrp,
+        discountPercent,
+        price: discountedPrice,
+        color: variant.color,
+      });
+
+      if (canManageStock) {
+        sizeObj.stock -= item.quantity;
+      }
+
+      await product.save(); // ✅ persist stock change
+    }
+
+    const order = await Order.create({
+      orderId: generateOrderId(),
+      userId,
+      merchantId,
+      address,
+      items: itemDetails,
+      totalAmount,
+      paymentType: "upi",
+      paymentStatus: "pending", // awaiting merchant verification of the screenshot
+      orderStatus: "pending",
+      paymentImage,
+    });
+
+    // ✅ CLEAR CART AFTER ORDER SUCCESS
+    await User.findByIdAndUpdate(userId, {
+      $set: { cartItems: [] },
+    });
+
+    const merchantConfig = await loadMerchantConfig(order.merchantId);
+
+    // 📲 Notify customer
+    notifyOrderPlaced(
+      {
+        phone: addressInfo.phone || req.user.phone,
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+        paymentType: "upi",
+        paymentStatus: "pending",
+        orderStatus: "pending",
+      },
+      merchantConfig,
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Order placed successfully — awaiting payment verification",
+      order,
+    });
+  } catch (error) {
+    console.error("Place UPI order error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// export const updateOrderStatus = async (req, res) => {
+//   try {
+//     const { orderId } = req.params; // Mongo _id
+//     const { paymentStatus, orderStatus, status, isPaid, trackingPartner } =
+//       req.body;
+
+//     if (!orderId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Order ID (_id) is required",
+//       });
+//     }
+
+//     // 🔹 Fetch existing order first
+//     const existingOrder = await Order.findById(orderId);
+
+//     if (!existingOrder) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Order not found",
+//       });
+//     }
+
+//     const merchant = await Merchants.findById(existingOrder.merchantId);
+
+//     const canManageStock =
+//       merchant?.isSubscribed && merchant?.features?.stockManagement;
+
+//     // 🔹 RESTOCK LOGIC (only once)
+//     if (
+//       canManageStock &&
+//       orderStatus === "cancelled" &&
+//       existingOrder.orderStatus !== "cancelled"
+//     ) {
+//       for (const item of existingOrder.items) {
+//         const productId = item.productId._id || item.productId;
+//         const { size, quantity } = item;
+
+//         await Product.updateOne(
+//           {
+//             _id: productId,
+//             "variants.sizes.size": size,
+//           },
+//           {
+//             $inc: {
+//               "variants.$[].sizes.$[s].stock": quantity,
+//             },
+//           },
+//           {
+//             arrayFilters: [{ "s.size": size }],
+//           },
+//         );
+//       }
+//     }
+
+//     // 🔹 Build update fields
+//     const updateFields = {};
+//     if (paymentStatus) updateFields.paymentStatus = paymentStatus;
+//     if (orderStatus) updateFields.orderStatus = orderStatus;
+//     if (status) updateFields.status = status;
+//     if (trackingPartner) updateFields.trackingPartner = trackingPartner;
+//     if (typeof isPaid === "boolean") updateFields.isPaid = isPaid;
+
+//     updateFields.updatedAt = new Date();
+
+//     // 🔹 Update order
+//     const updatedOrder = await Order.findByIdAndUpdate(
+//       orderId,
+//       { $set: updateFields },
+//       { new: true },
+//     ).populate({
+//       path: "address",
+//     });
+
+//     const merchantConfig = await loadMerchantConfig(updatedOrder.merchantId);
+
+//     if (orderStatus || paymentStatus || typeof isPaid === "boolean") {
+//       notifyOrderStatusUpdate(
+//         {
+//           phone: updatedOrder.address?.phone,
+//           orderId: updatedOrder.orderId,
+//           orderStatus: updatedOrder.orderStatus,
+//           paymentStatus: updatedOrder.paymentStatus,
+//           paymentType: updatedOrder.paymentType,
+//           isPaid: updatedOrder.isPaid,
+//         },
+//         merchantConfig,
+//       );
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       message:
+//         orderStatus === "cancelled" && canManageStock
+//           ? "Order cancelled & items restocked successfully"
+//           : "Order updated successfully",
+
+//       order: updatedOrder,
+//     });
+//   } catch (error) {
+//     console.error("Update order error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Something went wrong while updating order",
+//     });
+//   }
+// };
+
+// ================= CREATE ONLINE PAYMENT ORDER ================= //
+
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params; // Mongo _id
-    const { paymentStatus, orderStatus, status, isPaid, trackingPartner } =
-      req.body;
+    const {
+      paymentStatus,
+      orderStatus,
+      status,
+      isPaid,
+      trackingPartner,
+      amountPaid, // 🔹 NEW: how much the merchant has actually received so far
+    } = req.body;
 
     if (!orderId) {
       return res.status(400).json({
@@ -201,6 +495,28 @@ export const updateOrderStatus = async (req, res) => {
         success: false,
         message: "Order not found",
       });
+    }
+
+    // 🔹 Validate amountPaid, if provided
+    if (amountPaid !== undefined) {
+      if (typeof amountPaid !== "number" || Number.isNaN(amountPaid)) {
+        return res.status(400).json({
+          success: false,
+          message: "amountPaid must be a number",
+        });
+      }
+      if (amountPaid < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "amountPaid cannot be negative",
+        });
+      }
+      if (amountPaid > existingOrder.totalAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `amountPaid cannot exceed the order total (₹${existingOrder.totalAmount})`,
+        });
+      }
     }
 
     const merchant = await Merchants.findById(existingOrder.merchantId);
@@ -237,10 +553,32 @@ export const updateOrderStatus = async (req, res) => {
 
     // 🔹 Build update fields
     const updateFields = {};
-    if (paymentStatus) updateFields.paymentStatus = paymentStatus;
     if (orderStatus) updateFields.orderStatus = orderStatus;
     if (status) updateFields.status = status;
     if (trackingPartner) updateFields.trackingPartner = trackingPartner;
+
+    if (amountPaid !== undefined) {
+      updateFields.amountPaid = amountPaid;
+
+      // Auto-derive paymentStatus/isPaid from the new amountPaid, UNLESS the
+      // caller explicitly passed their own paymentStatus/isPaid in this same
+      // request — an explicit value always wins over the derived one.
+      if (paymentStatus === undefined) {
+        if (amountPaid >= existingOrder.totalAmount) {
+          updateFields.paymentStatus = "paid";
+        } else if (amountPaid > 0) {
+          updateFields.paymentStatus = "partial";
+        } else {
+          updateFields.paymentStatus = "pending";
+        }
+      }
+      if (typeof isPaid !== "boolean") {
+        updateFields.isPaid = amountPaid >= existingOrder.totalAmount;
+      }
+    }
+
+    // Explicit values always take precedence over anything derived above
+    if (paymentStatus) updateFields.paymentStatus = paymentStatus;
     if (typeof isPaid === "boolean") updateFields.isPaid = isPaid;
 
     updateFields.updatedAt = new Date();
@@ -256,7 +594,12 @@ export const updateOrderStatus = async (req, res) => {
 
     const merchantConfig = await loadMerchantConfig(updatedOrder.merchantId);
 
-    if (orderStatus || paymentStatus || typeof isPaid === "boolean") {
+    if (
+      orderStatus ||
+      paymentStatus ||
+      typeof isPaid === "boolean" ||
+      amountPaid !== undefined
+    ) {
       notifyOrderStatusUpdate(
         {
           phone: updatedOrder.address?.phone,
@@ -265,6 +608,8 @@ export const updateOrderStatus = async (req, res) => {
           paymentStatus: updatedOrder.paymentStatus,
           paymentType: updatedOrder.paymentType,
           isPaid: updatedOrder.isPaid,
+          amountPaid: updatedOrder.amountPaid,
+          pendingAmount: updatedOrder.pendingAmount,
         },
         merchantConfig,
       );
@@ -288,7 +633,6 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
-// ================= CREATE ONLINE PAYMENT ORDER ================= //
 export const createOnlineOrder = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -306,6 +650,16 @@ export const createOnlineOrder = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Merchant not found",
+      });
+    }
+    if (
+      !merchant.isRazorpayenabled ||
+      !merchant.razorpayKey ||
+      !merchant.razorpaySecret
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Razorpay payment is not available for this merchant.",
       });
     }
 
@@ -366,8 +720,8 @@ export const createOnlineOrder = async (req, res) => {
 
     // 💳 Razorpay instance
     const razorpay = new Razorpay({
-      key_id: merchant.razorpayKey,
-      key_secret: merchant.razorpaySecret,
+      key_id: merchant?.razorpayKey,
+      key_secret: merchant?.razorpaySecret,
     });
 
     // 🧾 Create Razorpay order
@@ -543,6 +897,7 @@ export const getAllOrdersByMerchant = async (req, res) => {
       merchantId,
       $or: [
         { paymentType: "cod" },
+        { paymentType: "upi" },
         { paymentType: "online", isPaid: true, paymentStatus: "paid" },
       ],
     };
@@ -741,6 +1096,7 @@ export const getOrdersByUserId = async (req, res) => {
       userId,
       $or: [
         { paymentType: "cod" },
+        { paymentType: "upi" },
         { paymentType: "online", isPaid: true, paymentStatus: "paid" },
       ],
     };

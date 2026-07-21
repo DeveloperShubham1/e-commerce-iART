@@ -36,9 +36,10 @@ const OrderSchema = new mongoose.Schema({
     },
   ],
   totalAmount: { type: Number, required: true },
+  amountPaid: { type: Number, default: 0, min: 0 },
   paymentStatus: {
     type: String,
-    enum: ["pending", "paid", "failed"],
+    enum: ["pending", "partial", "paid", "failed"],
     default: "pending",
   },
   //  status as tracking Id
@@ -85,5 +86,13 @@ const OrderSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
+
+// 🔹 ADD THIS BLOCK
+OrderSchema.virtual("pendingAmount").get(function () {
+  return Math.max((this.totalAmount || 0) - (this.amountPaid || 0), 0);
+});
+
+OrderSchema.set("toJSON", { virtuals: true });
+OrderSchema.set("toObject", { virtuals: true });
 
 export default mongoose.model("Order", OrderSchema);

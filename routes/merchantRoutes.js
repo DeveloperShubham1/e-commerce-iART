@@ -9,6 +9,8 @@ import {
   getMerchantSettings,
   updateMerchantSettings,
   updateMerchant,
+  updatePaymentConfig,
+  getPaymentConfig,
   // Instagram Integration
   getInstagramConfig,
   updateInstagramConfig,
@@ -17,7 +19,7 @@ import {
   getSubscriptionStatus,
   disconnectInstagram,
   refreshInstagramToken,
-  updateInstagramConnectSdk
+  updateInstagramConnectSdk,
 } from "../controllers/merchantController.js";
 import authMerchant from "../middlewares/merchantAuth.js";
 
@@ -29,6 +31,11 @@ router.get("/is-auth", authMerchant, isMerchantAuth);
 router.post("/logout", authMerchant, merchantLogout);
 router.put("/update-password", authMerchant, updateMerchantPassword);
 router.put("/update/:merchantId", updateMerchant);
+
+// payment config
+router.get("/payment-config", authMerchant, getPaymentConfig);
+router.put("/payment-config", authMerchant, updatePaymentConfig);
+
 // settings
 router.post("/settings", authMerchant, createMerchantSettings);
 router.put("/settings", authMerchant, updateMerchantSettings);
@@ -46,6 +53,6 @@ router.get(
   getSubscriptionStatus,
 );
 router.delete("/instagram", authMerchant, disconnectInstagram);
-router.post("/instagram/refresh-token",authMerchant, refreshInstagramToken);
+router.post("/instagram/refresh-token", authMerchant, refreshInstagramToken);
 
 export default router;

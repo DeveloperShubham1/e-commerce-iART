@@ -8,8 +8,28 @@ const MerchantSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
 
-  razorpayKey: { type: String },
-  razorpaySecret: { type: String },
+  // razorpay config
+  razorpayKey: { type: String, default: null },
+  razorpaySecret: { type: String, default: null },
+  isRazorpayenabled: { type: Boolean, default: false },
+
+  // UPI Payment
+  upi: {
+    enabled: {
+      type: Boolean,
+      default: false,
+    },
+
+    upiId: {
+      type: String,
+      default: null,
+    },
+
+    qrCodeImage: {
+      type: String,
+      default: null,
+    },
+  },
 
   isSubscribed: { type: Boolean, default: false },
   features: {

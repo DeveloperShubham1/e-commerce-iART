@@ -315,6 +315,90 @@ export const updateMerchant = async (req, res) => {
   }
 };
 
+export const updatePaymentConfig = async (req, res) => {
+  try {
+    const merchantId = req.merchant?._id;
+
+    // Check if merchant exists
+    const merchant = await Merchant.findById(merchantId);
+
+    if (!merchant) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Merchant not found." });
+    }
+
+    const {
+      razorpayKey,
+      razorpaySecret,
+      isRazorpayenabled,
+      upiEnabled,
+      upiId,
+      qrCodeImage,
+    } = req.body;
+
+    const updateData = {
+      razorpayKey: razorpayKey || null,
+      razorpaySecret: razorpaySecret || null,
+      isRazorpayenabled: isRazorpayenabled === true,
+      "upi.enabled": upiEnabled === true,
+      "upi.upiId": upiId || null,
+      "upi.qrCodeImage": qrCodeImage || null,
+    };
+
+    const updatedMerchant = await Merchant.findByIdAndUpdate(
+      merchantId,
+      { $set: updateData },
+      { new: true },
+    ).select("razorpayKey razorpaySecret isRazorpayenabled upi");
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment configuration updated successfully.",
+      data: updatedMerchant,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong.",
+      error: error.message,
+    });
+  }
+};
+
+export const getPaymentConfig = async (req, res) => {
+  try {
+    const merchantId = req.merchant?._id;
+
+    const merchant = await Merchant.findById(merchantId).select(
+      "razorpayKey razorpaySecret isRazorpayenabled upi",
+    );
+
+    if (!merchant) {
+      return res.status(404).json({
+        success: false,
+        message: "Merchant not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment configuration fetched successfully.",
+      data: merchant,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong.",
+      error: error.message,
+    });
+  }
+};
+
 // Merchant settings
 //  CREATE settings (only once per merchant)
 export const createMerchantSettings = async (req, res) => {
@@ -497,6 +581,15 @@ export const getMerchantSettings = async (req, res) => {
       });
     }
 
+    const merchant = await Merchant.findById(merchantId);
+
+    if (!merchant) {
+      return res.status(404).json({
+        success: false,
+        message: "Merchant not found",
+      });
+    }
+
     const settings = await MerchantWebsiteSettings.findOne({ merchantId });
 
     if (!settings) {
@@ -506,9 +599,21 @@ export const getMerchantSettings = async (req, res) => {
       });
     }
 
+    // Convert mongoose document to plain object
+    const settingsData = settings.toObject();
+
+    // Add contact information from Merchant model
+    settingsData.contact = {
+      email: merchant.email || "",
+      phone: merchant.phone || "",
+      address: merchant.address || "",
+      merchantName: merchant.merchantName || "",
+      ownerName: merchant.ownerName || "",
+    };
+
     return res.status(200).json({
       success: true,
-      data: settings,
+      data: settingsData,
     });
   } catch (error) {
     return res.status(500).json({
@@ -539,6 +644,7 @@ export async function getInstagramConfig(req, res) {
     const graphApiVersion = process.env.META_GRAPH_VERSION || "v25.0";
     const tokenExpiresAt = merchant.instagram?.tokenExpiresAt || "";
     const isConnected = merchant.instagram?.isConnected || "";
+    const siteBaseUrl = merchant.instagram?.siteBaseUrl;
     // if (ig.accessToken) ig.accessToken = maskToken(ig.accessToken);
     // if (ig.pageAccessToken) ig.pageAccessToken = maskToken(ig.pageAccessToken);
     // if (ig.appSecret) ig.appSecret = maskToken(ig.appSecret);
@@ -554,6 +660,7 @@ export async function getInstagramConfig(req, res) {
         graphApiVersion,
         tokenExpiresAt,
         isConnected,
+        siteBaseUrl,
       },
     });
   } catch (err) {
