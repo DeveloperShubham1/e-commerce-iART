@@ -9,6 +9,48 @@ import { usePaymentConfig } from "../services/merchant";
 const ADVANCE_AMOUNT = 200;
 
 // ---------------------------------------------------------------------------
+// Navigating to /add-address fully unmounts BuyNow, so local useState
+// (quantity, paymentOption, selectedAddress, uploaded screenshots) would
+// normally be lost when the user comes back via navigate(-1) — even though
+// location.state (and therefore the product itself) survives that trip.
+// We persist just the ephemeral selections to sessionStorage, keyed to this
+// specific product/variant/size, and restore them on mount.
+// ---------------------------------------------------------------------------
+const getBuyNowStorageKey = (state) =>
+  state?.productId
+    ? `buyNowState:${state.productId}:${state.variantId}:${state.size}`
+    : null;
+
+const loadBuyNowState = (key) => {
+  if (!key) return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveBuyNowState = (key, state) => {
+  if (!key) return;
+  try {
+    sessionStorage.setItem(key, JSON.stringify(state));
+  } catch {
+    // sessionStorage can fail in private-browsing/storage-full edge cases —
+    // non-critical, the page just won't restore selections in that case
+  }
+};
+
+const clearBuyNowState = (key) => {
+  if (!key) return;
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // no-op
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Uploads a single payment-screenshot file to your S3 endpoint and returns
 // the public URL (not the presigned PUT signedUrl — that's only for upload).
 // ---------------------------------------------------------------------------
@@ -103,14 +145,8 @@ const PaymentQrModal = ({
       : "Scan the QR code or pay to the UPI ID below, then upload your payment screenshot to confirm your Cash on Delivery order.";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-xl bg-white p-5 sm:p-6 max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="w-full max-w-sm rounded-xl bg-white p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         <p className="mt-1 text-sm text-gray-500">{description}</p>
 
@@ -208,8 +244,14 @@ const BuyNow = () => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentOption, setPaymentOption] = useState(""); // "" | "COD" | "Online" | "UPI"
 
+  const storageKey = getBuyNowStorageKey(location.state);
+  const [hasRestored, setHasRestored] = useState(false);
+
   /* ---------------- QR/UPI AVAILABILITY ---------------- */
   const upiAvailable = Boolean(paymentConfig?.upi?.enabled);
+  const codAvailable = Boolean(paymentConfig?.upi?.codEnabled);
+  const razpayAvailable = Boolean(paymentConfig?.isRazorpayenabled);
+
   const codAdvanceRequired = upiAvailable; // COD still needs the small advance
   const [modalMode, setModalMode] = useState(null); // "cod" | "upi" | null
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -253,6 +295,45 @@ const BuyNow = () => {
     toast.success("Payment screenshot uploaded");
   };
 
+  // Restore quantity/paymentOption/screenshots after coming back from
+  // /add-address (or any other remount) — runs once per storageKey.
+  // (selectedAddressId is intentionally NOT restored here — it's read
+  // directly from sessionStorage inside getUserAddress instead, once the
+  // address list has actually loaded, to avoid a stale-closure race.)
+  useEffect(() => {
+    if (hasRestored) return;
+    const saved = loadBuyNowState(storageKey);
+    if (saved) {
+      if (saved.quantity) setQuantity(saved.quantity);
+      if (saved.paymentOption) setPaymentOption(saved.paymentOption);
+      if (saved.codPaymentImage) setCodPaymentImage(saved.codPaymentImage);
+      if (saved.upiPaymentImage) setUpiPaymentImage(saved.upiPaymentImage);
+    }
+    setHasRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+
+  // Persist the ephemeral selections any time they change, so they survive
+  // the round trip to /add-address and back.
+  useEffect(() => {
+    if (!hasRestored) return; // don't overwrite saved state with initial defaults before restore runs
+    saveBuyNowState(storageKey, {
+      quantity,
+      paymentOption,
+      codPaymentImage,
+      upiPaymentImage,
+      selectedAddressId: selectedAddress?._id || null,
+    });
+  }, [
+    hasRestored,
+    storageKey,
+    quantity,
+    paymentOption,
+    codPaymentImage,
+    upiPaymentImage,
+    selectedAddress,
+  ]);
+
   /* ---------------- FETCH ADDRESS ---------------- */
   const getUserAddress = async () => {
     try {
@@ -260,7 +341,16 @@ const BuyNow = () => {
       if (data.success) {
         setAddresses(data.addresses);
         if (data.addresses.length > 0) {
-          setSelectedAddress(data.addresses[0]);
+          // Prefer the address that was selected before navigating away to
+          // /add-address (if it still exists); otherwise fall back to first.
+          // Read directly from sessionStorage (not React state) so this
+          // always sees the latest value even though getUserAddress is
+          // async and could otherwise close over a stale render's state.
+          const saved = loadBuyNowState(storageKey);
+          const restored =
+            saved?.selectedAddressId &&
+            data.addresses.find((a) => a._id === saved.selectedAddressId);
+          setSelectedAddress(restored || data.addresses[0]);
         }
       }
     } catch (err) {
@@ -404,6 +494,7 @@ const BuyNow = () => {
 
         if (data.success) {
           toast.success(data.message);
+          clearBuyNowState(storageKey);
           navigate("/my-orders", { state: { justPlaced: true } });
         } else {
           toast.error(data.message);
@@ -419,10 +510,11 @@ const BuyNow = () => {
           amountPaid: finalTotal,
         };
 
-        const { data } = await ctxAxios.post("/api/orders/upi", payload);
+        const { data } = await ctxAxios.post("/api/user/order/upi", payload);
 
         if (data.success) {
           toast.success(data.message);
+          clearBuyNowState(storageKey);
           navigate("/my-orders", { state: { justPlaced: true } });
         } else {
           toast.error(data.message);
@@ -564,9 +656,23 @@ const BuyNow = () => {
             <option value="" disabled>
               Select payment method
             </option>
-            <option value="COD">Cash On Delivery (Partial Payment)</option>
-            <option value="Online">Online Payment(razorpay)</option>
-            {upiAvailable && <option value="UPI">UPI Payment (Pay & Upload)</option>}
+            {codAvailable && (
+              <option value="COD">
+                Cash On Delivery (Partial Payment)
+              </option>
+            )}
+
+            {razpayAvailable && (
+              <option value="Online">
+                Online Payment (Razorpay)
+              </option>
+            )}
+
+            {upiAvailable && (
+              <option value="UPI">
+                UPI Payment (Pay & Upload)
+              </option>
+            )}
           </select>
 
           {paymentOption === "COD" && codAdvanceRequired && (

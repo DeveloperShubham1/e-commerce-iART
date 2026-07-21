@@ -139,15 +139,15 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
             <div className="bg-gray-50 p-4 rounded-md border">
               <h3 className="font-semibold text-base mb-2">Shipping Address</h3>
               <p>
-                {order.address.firstName} {order.address.lastName}
+                {order?.address?.firstName} {order?.address?.lastName}
               </p>
               <p>{order?.address?.street}, {order?.address?.landmark}</p>
               <p>
-                {order.address.city}, {order.address.state} -{" "}
-                {order.address.zipcode}
+                {order?.address?.city}, {order?.address?.state} -{" "}
+                {order?.address?.zipcode}
               </p>
-              <p>{order.address.country}</p>
-              <p className="mt-1 font-semibold">Phone: {order.address.phone}</p>
+              <p>{order?.address?.country}</p>
+              <p className="mt-1 font-semibold">Phone: {order?.address?.phone}</p>
             </div>
           </div>
 

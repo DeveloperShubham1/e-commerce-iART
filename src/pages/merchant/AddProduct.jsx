@@ -25,6 +25,7 @@ const emptyVariant = () => ({
     emptySize("S"),
     emptySize("M"),
     emptySize("L"),
+    emptySize("XL")
   ],
   isTrending: false,
   trendingOrder: null,

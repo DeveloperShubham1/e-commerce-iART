@@ -6,6 +6,8 @@ import { toast } from "react-toastify";
 import reportIcon from "../../assets/reportIcon.svg";
 import instagram from "../../assets/instagram.svg";
 import userGear from "../../assets/user-gear.svg";
+import mLogo from "../../assets/textLogo.png";
+
 import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 
 const SellerLayout = () => {
@@ -100,13 +102,16 @@ const SellerLayout = () => {
             </svg>
           </button>
 
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-sm">
-              M
-            </div>
-            <span className="font-semibold text-lg text-gray-800 hidden sm:block">
+          <Link to="/dashboard" className="flex items-center gap-3">
+            <img
+              src={mLogo}
+              alt="Merchant Logo"
+              className="h-10 w-auto object-contain"
+            />
+
+            {/* <span className="font-semibold text-lg text-gray-800 hidden sm:block">
               Merchant
-            </span>
+            </span> */}
           </Link>
         </div>
 
@@ -203,7 +208,7 @@ const SellerLayout = () => {
           >
             <div className="flex items-center justify-between h-16 px-5 border-b border-gray-100">
               <span className="font-semibold text-lg text-gray-800">
-                Admin Menu
+                Merchant 
               </span>
               <button
                 onClick={() => setMobileOpen(false)}

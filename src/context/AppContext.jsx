@@ -23,6 +23,15 @@ export const AppContextProvider = ({ children }) => {
   const [authLoading, setAuthLoading] = useState(true);
   const [merchantData, setMerchantData] = useState({});
 
+  // PAGINATION 
+
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [searchParams, setSearchParams] = useState("");
+
+
   // Get the merchant ID from frontend .env
   const merchantId = import.meta.env.VITE_MERCHANT_ID;
 
@@ -87,10 +96,14 @@ export const AppContextProvider = ({ children }) => {
   const fetchProducts = async () => {
     try {
       const { data } = await axios.get(
-        `/api/user/product/list?merchantId=${merchantId}`
-      ); // ✅ corrected route
+        `/api/user/product/list?merchantId=${merchantId}&search=${searchParams}&page=${page}&limit=${limit}`
+      );
+
       if (data.success) {
         setProducts(data.products);
+        setTotal(data.total);
+        setPage(data.page);
+        setTotalPages(data.totalPages);
       } else {
         toast.error(data.message || "Failed to fetch products");
       }

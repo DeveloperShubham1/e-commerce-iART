@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { useQueryClient } from "@tanstack/react-query";
 import { updatePaymentConfig, uploadToS3 } from "../../api";
 import { usePaymentConfig } from "../../services/merchant";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 
 const Toggle = ({ checked, onChange, label, description, disabled = false }) => (
@@ -72,6 +73,7 @@ const DEFAULT_CONFIG = {
   razorpaySecret: "",
   isRazorpayenabled: false,
   upiEnabled: false,
+  codEnabled: false,
   upiId: "",
   qrCodeImage: "",
 };
@@ -84,6 +86,7 @@ export default function PaymentTab() {
   const [qrFile, setQrFile] = useState(null); // newly picked file, not yet uploaded
   const [qrPreview, setQrPreview] = useState(""); // local object URL for the picked file
   const [saving, setSaving] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
 
   // Sync React Query data to local form state
   useEffect(() => {
@@ -94,6 +97,7 @@ export default function PaymentTab() {
         razorpaySecret: data.data.razorpaySecret || "",
         isRazorpayenabled: data.data.isRazorpayenabled || false,
         upiEnabled: data.data.upi?.enabled || false,
+        codEnabled: data.data.upi?.codEnabled || false,
         upiId: data.data.upi?.upiId || "",
         qrCodeImage: data.data.upi?.qrCodeImage || "",
       });
@@ -112,7 +116,20 @@ export default function PaymentTab() {
   };
 
   const handleToggle = (field) => (value) => {
-    setConfig((prev) => ({ ...prev, [field]: value }));
+    setConfig((prev) => {
+      if (field === "upiEnabled") {
+        return {
+          ...prev,
+          upiEnabled: value,
+          codEnabled: value ? prev.codEnabled : false,
+        };
+      }
+
+      return {
+        ...prev,
+        [field]: value,
+      };
+    });
   };
 
   const handleQrFileChange = (e) => {
@@ -141,6 +158,7 @@ export default function PaymentTab() {
       }
 
       const payload = { ...config, qrCodeImage };
+
 
       const res = await updatePaymentConfig(payload);
 
@@ -191,6 +209,8 @@ export default function PaymentTab() {
           onChange={handleToggle("isRazorpayenabled")}
         />
 
+
+
         {config.isRazorpayenabled && (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -209,17 +229,34 @@ export default function PaymentTab() {
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Razorpay Key Secret
               </label>
-              <input
-                type="password"
-                value={config.razorpaySecret}
-                onChange={handleChange("razorpaySecret")}
-                placeholder="••••••••••••"
-                className="w-full px-2 py-2.5 border border-gray-500/30 rounded outline-none text-gray-700 focus:border-primary transition"
-              />
+
+              <div className="relative">
+                <input
+                  type={showSecret ? "text" : "password"}
+                  value={config.razorpaySecret}
+                  onChange={handleChange("razorpaySecret")}
+                  placeholder="••••••••••••"
+                  className="w-full px-2 py-2.5 pr-10 border border-gray-500/30 rounded outline-none text-gray-700 focus:border-primary transition"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowSecret((prev) => !prev)}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+                >
+                  {showSecret ? (
+                    <FiEyeOff className="w-5 h-5" />
+                  ) : (
+                    <FiEye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
       </div>
+
+
 
       {/* ---------------- UPI ---------------- */}
       <div className="mt-6 border-t border-gray-100 pt-5">
@@ -229,6 +266,16 @@ export default function PaymentTab() {
           checked={config.upiEnabled}
           onChange={handleToggle("upiEnabled")}
         />
+
+        <div className="mt-4">
+          <Toggle
+            label="Enable Cash on Delivery"
+            description="Allow customers to pay when the order is delivered"
+            checked={config.codEnabled}
+            onChange={handleToggle("codEnabled")}
+            disabled={!config.upiEnabled}
+          />
+        </div>
 
         {config.upiEnabled && (
           <div className="mt-4 space-y-4">

@@ -3,8 +3,13 @@ import { useAppContext } from "../context/AppContext";
 import { assets } from "../assets/assets";
 import { toast } from "react-toastify";
 import PayNowButton from "../components/PayNowButton";
-import PaymentQrModal from "../components/merchant/Paymentqrmodal";
+import PaymentQrModal from "../components/merchant/PaymentQrModal";
 import { usePaymentConfig } from "../services/merchant";
+import {
+  loadCheckoutState,
+  saveCheckoutState,
+  clearCheckoutState,
+} from "../utils/checkoutPersistence";
 
 const ADVANCE_AMOUNT = 200;
 
@@ -35,12 +40,21 @@ const Cart = () => {
 
   /* ---------------- QR/UPI AVAILABILITY ---------------- */
   const upiAvailable = Boolean(paymentConfig?.upi?.enabled);
+  const codAvailable = Boolean(paymentConfig?.upi?.codEnabled);
+  const razpayAvailable = Boolean(paymentConfig?.isRazorpayenabled);
+
+
   const codAdvanceRequired = upiAvailable; // COD still needs the small advance
   const [modalMode, setModalMode] = useState(null); // "cod" | "upi" | null
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const [codPaymentImage, setCodPaymentImage] = useState(null); // ₹200 advance screenshot
   const [upiPaymentImage, setUpiPaymentImage] = useState(null); // full-amount screenshot
+
+  // Cart isn't tied to one product like BuyNow, so key persistence off the
+  // logged-in user instead of productId/variantId/size.
+  const storageKey = user?._id ? `cartCheckoutState:${user._id}` : null;
+  const [hasRestored, setHasRestored] = useState(false);
 
   const openPaymentModal = (mode) => {
     setModalMode(mode);
@@ -77,6 +91,37 @@ const Cart = () => {
     setShowPaymentModal(false);
     toast.success("Payment screenshot uploaded");
   };
+
+  // Restore paymentOption/screenshots/selected address after coming back
+  // from /add-address (or any other remount) — runs once per storageKey.
+  useEffect(() => {
+    if (hasRestored || !storageKey) return;
+    const saved = loadCheckoutState(storageKey);
+    if (saved) {
+      if (saved.paymentOption) setPaymentOption(saved.paymentOption);
+      if (saved.codPaymentImage) setCodPaymentImage(saved.codPaymentImage);
+      if (saved.upiPaymentImage) setUpiPaymentImage(saved.upiPaymentImage);
+    }
+    setHasRestored(true);
+  }, [storageKey, hasRestored]);
+
+  // Persist the ephemeral selections any time they change.
+  useEffect(() => {
+    if (!hasRestored || !storageKey) return;
+    saveCheckoutState(storageKey, {
+      paymentOption,
+      codPaymentImage,
+      upiPaymentImage,
+      selectedAddressId: selectedAddress?._id || null,
+    });
+  }, [
+    hasRestored,
+    storageKey,
+    paymentOption,
+    codPaymentImage,
+    upiPaymentImage,
+    selectedAddress,
+  ]);
 
   useEffect(() => {
     (async () => {
@@ -135,7 +180,11 @@ const Cart = () => {
       if (data.success) {
         setAddresses(data.addresses);
         if (data.addresses.length > 0) {
-          setSelectedAddress(data.addresses[0]);
+          const saved = loadCheckoutState(storageKey);
+          const restored =
+            saved?.selectedAddressId &&
+            data.addresses.find((a) => a._id === saved.selectedAddressId);
+          setSelectedAddress(restored || data.addresses[0]);
         }
       } else {
         toast.error(data.message);
@@ -162,6 +211,15 @@ const Cart = () => {
       setCartArray([]);
     }
   }, [products, cartItems]);
+
+  // Clear any saved payment method/screenshots if the cart becomes empty —
+  // e.g. the user removed every item. Otherwise a stale "UPI screenshot
+  // confirmed" state could carry over to an unrelated future cart.
+  useEffect(() => {
+    if (hasRestored && storageKey && cartItems.length === 0) {
+      clearCheckoutState(storageKey);
+    }
+  }, [cartItems, hasRestored, storageKey]);
 
   useEffect(() => {
     if (user) {
@@ -230,6 +288,7 @@ const Cart = () => {
 
         if (data.success) {
           toast.success(data.message);
+          clearCheckoutState(storageKey);
           setCartItems([]);
           navigate("/my-orders", { state: { justPlaced: true } });
         } else {
@@ -248,6 +307,7 @@ const Cart = () => {
 
         if (data.success) {
           toast.success(data.message);
+          clearCheckoutState(storageKey);
           setCartItems([]);
           navigate("/my-orders", { state: { justPlaced: true } });
         } else {
@@ -463,9 +523,23 @@ const Cart = () => {
               <option value="" disabled>
                 Select payment method
               </option>
-              <option value="COD">Cash On Delivery (Partial Payment)</option>
-              <option value="Online">Online Payment(razorpay)</option>
-              {upiAvailable && <option value="UPI">UPI Payment (Pay & Upload)</option>}
+              {codAvailable && (
+                <option value="COD">
+                  Cash On Delivery (Partial Payment)
+                </option>
+              )}
+
+              {razpayAvailable && (
+                <option value="Online">
+                  Online Payment (Razorpay)
+                </option>
+              )}
+
+              {upiAvailable && (
+                <option value="UPI">
+                  UPI Payment (Pay & Upload)
+                </option>
+              )}
             </select>
 
             {paymentOption === "COD" && codAdvanceRequired && (
@@ -526,13 +600,13 @@ const Cart = () => {
             <span>Shipping</span>
             <span className="text-green-600">Free</span>
           </div>
-          {/* <div className="flex justify-between">
+          <div className="flex justify-between">
             <span>Tax (2%)</span>
             <span>
               {currency}
               {taxAmount.toFixed(2)}
             </span>
-          </div> */}
+          </div>
           <div className="flex justify-between text-lg font-semibold pt-3 border-t">
             <span>Total</span>
             <span>
