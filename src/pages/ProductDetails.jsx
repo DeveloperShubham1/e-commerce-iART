@@ -321,13 +321,13 @@ const ProductDetails = () => {
 
       {/* ---------------- RELATED PRODUCTS ---------------- */}
       {/* ---------------- RELATED VARIANTS ---------------- */}
-      <div className="mt-20">
-        <h2 className="text-2xl font-medium text-center">Other Variants</h2>
+      {product?.variants
+        .filter((v) => v._id !== selectedVariant?._id) // exclude current variant
+        .map((variant) => (
+          <div className="mt-20">
+            <h2 className="text-2xl font-medium text-center">Other Variants</h2>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-6">
-          {product?.variants
-            .filter((v) => v._id !== selectedVariant?._id) // exclude current variant
-            .map((variant) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-6">
               <ProductCard
                 key={variant._id}
                 item={{
@@ -340,9 +340,9 @@ const ProductDetails = () => {
                   variant: variant,
                 }}
               />
-            ))}
-        </div>
-      </div>
+            </div>
+          </div>
+        ))}
     </div>
   );
 };

@@ -149,7 +149,7 @@ export default function Profile() {
   const isConnected = !!instagram?.isConnected;
 
   return (
-    <div className="mx-auto w-full max-w-7xl rounded-2xl bg-white shadow-sm p-4 sm:p-6 lg:p-8">
+    <div className="rounded-2xl bg-white shadow-sm p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
           Integrations

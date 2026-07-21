@@ -1,7 +1,7 @@
 import React from "react";
 import { useAppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
-
+import { Eye, EyeOff } from "lucide-react";
 const Login = () => {
   const { setShowUserLogin, setUser, axios, navigate, setCartItems } =
     useAppContext();
@@ -10,7 +10,7 @@ const Login = () => {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-
+  const [showPassword, setShowPassword] = React.useState(false);
   const onSubmitHandler = async (event) => {
     try {
       event.preventDefault();
@@ -69,18 +69,33 @@ const Login = () => {
             required
           />
         </div>
-        <div className="w-full ">
+        <div className="w-full">
           <p>Password</p>
-          <input
-            onChange={(e) => setPassword(e.target.value)}
-            value={password}
-            minLength={8}
-            maxLength={12}
-            placeholder="type here"
-            className="border border-gray-200 rounded w-full p-2 mt-1 outline-primary"
-            type="password"
-            required
-          />
+
+          <div className="relative mt-1">
+            <input
+              onChange={(e) => setPassword(e.target.value)}
+              value={password}
+              minLength={8}
+              maxLength={12}
+              placeholder="Enter your password"
+              className="border border-gray-200 rounded w-full p-2 pr-10 outline-primary"
+              type={showPassword ? "text" : "password"}
+              required
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-primary"
+            >
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
         {state === "register" ? (
           <p>

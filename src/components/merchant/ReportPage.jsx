@@ -125,10 +125,10 @@ export default function ReportPage() {
   if (loading || topProductsLoading || paymentLoading) return <Loader />;
 
   return (
-    <div className="container mx-auto py-8 px-4 md:px-6">
+    <div className="container py-8 px-4 md:px-6">
       <h1 className="text-3xl font-bold tracking-tight mb-6">Sales Report</h1>
 
-      <Tabs
+      <TabsPage Titles
         defaultValue="sales"
         value={activeTab}
         onValueChange={setActiveTab}
@@ -434,7 +434,7 @@ export default function ReportPage() {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+      </TabsPage>
     </div>
   );
 }

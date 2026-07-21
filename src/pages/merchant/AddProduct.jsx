@@ -103,38 +103,113 @@ export default function AddProductVariants() {
     setVariants(newVars);
   };
 
-  const handleFilesChange = (vIdx, newFileList) => {
+  const MAX_IMAGES = 5;
+  const REQUIRED_WIDTH = 1097 || 1098;
+  const REQUIRED_HEIGHT = 823; 
+
+  const getImageDimensions = (file) =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        URL.revokeObjectURL(url);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Invalid image"));
+      };
+      img.src = url;
+    });
+
+  const handleFilesChange = async (vIdx, newFileList) => {
     const currentFiles = variants[vIdx].files || [];
-    const newFiles = Array.from(newFileList || []);
+    const incomingFiles = Array.from(newFileList || []);
+    if (!incomingFiles.length) return;
 
-    const merged = [...currentFiles, ...newFiles];
+    // Dedupe against what's already selected
+    const isSameFile = (a, b) =>
+      a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
 
-    const uniqueFiles = merged.filter(
-      (file, index, self) =>
-        index ===
-        self.findIndex(
-          (f) =>
-            f.name === file.name &&
-            f.size === file.size &&
-            f.lastModified === file.lastModified
-        )
+    const newlyAdded = incomingFiles.filter(
+      (f) => !currentFiles.some((cf) => isSameFile(cf, f))
     );
 
-    if (uniqueFiles.length > 5) {
-      toast.error("Maximum 5 images per variant");
-      return;
+    // Validate dimensions of only the newly picked files
+    const validFiles = [];
+    const rejected = [];
+
+    for (const file of newlyAdded) {
+      try {
+        const { width, height } = await getImageDimensions(file);
+        if (width === REQUIRED_WIDTH && height === REQUIRED_HEIGHT) {
+          validFiles.push(file);
+        } else {
+          rejected.push(`${file.name} (${width}x${height})`);
+        }
+      } catch {
+        rejected.push(`${file.name} (invalid image)`);
+      }
+    }
+
+    if (rejected.length) {
+      toast.error(
+        `Images must be exactly ${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}px. Rejected: ${rejected.join(", ")}`
+      );
+    }
+
+    let finalFiles = [...currentFiles, ...validFiles];
+
+    if (finalFiles.length > MAX_IMAGES) {
+      const droppedCount = finalFiles.length - MAX_IMAGES;
+      finalFiles = finalFiles.slice(0, MAX_IMAGES);
+      toast.error(
+        `Maximum ${MAX_IMAGES} images per variant. ${droppedCount} image(s) were not added.`
+      );
     }
 
     const newVars = [...variants];
-    newVars[vIdx].files = uniqueFiles;
+    newVars[vIdx].files = finalFiles;
 
-    // ⭐ ensure thumbnailIndex is not out of bounds
-    if (newVars[vIdx].thumbnailIndex >= uniqueFiles.length) {
+    if (newVars[vIdx].thumbnailIndex >= finalFiles.length) {
       newVars[vIdx].thumbnailIndex = 0;
     }
 
     setVariants(newVars);
   };
+
+  // const handleFilesChange = (vIdx, newFileList) => {
+  //   const currentFiles = variants[vIdx].files || [];
+  //   const newFiles = Array.from(newFileList || []);
+
+  //   const merged = [...currentFiles, ...newFiles];
+
+  //   const uniqueFiles = merged.filter(
+  //     (file, index, self) =>
+  //       index ===
+  //       self.findIndex(
+  //         (f) =>
+  //           f.name === file.name &&
+  //           f.size === file.size &&
+  //           f.lastModified === file.lastModified
+  //       )
+  //   );
+
+  //   if (uniqueFiles.length > 5) {
+  //     toast.error("Maximum 5 images per variant");
+  //     return;
+  //   }
+
+  //   const newVars = [...variants];
+  //   newVars[vIdx].files = uniqueFiles;
+
+  //   // ⭐ ensure thumbnailIndex is not out of bounds
+  //   if (newVars[vIdx].thumbnailIndex >= uniqueFiles.length) {
+  //     newVars[vIdx].thumbnailIndex = 0;
+  //   }
+
+  //   setVariants(newVars);
+  // };
 
   // const handleFilesChange = (vIdx, newFileList) => {
   //   const currentFiles = variants[vIdx].files || [];
@@ -283,7 +358,7 @@ export default function AddProductVariants() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-5xl mx-auto">
+      <div className="">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="bg-linear-to-r  px-8 py-6">
             <h1 className="text-3xl font-bold text-black flex items-center gap-3">
@@ -529,8 +604,10 @@ export default function AddProductVariants() {
                             type="file"
                             multiple
                             accept="image/*"
-                            onChange={(e) =>
-                              handleFilesChange(vIdx, e.target.files)
+                            onChange={(e) => {
+                              handleFilesChange(vIdx, e.target.files);
+                              e.target.value = "";
+                            }
                             }
                             className="hidden"
                             id={`file-${vIdx}`}
@@ -614,27 +691,27 @@ export default function AddProductVariants() {
                               key={sIdx}
                               className="grid grid-cols-12 gap-3 items-center bg-white p-4 rounded-xl border"
                             >
-                                <select
-                                  value={size.size}
-                                  onChange={(e) =>
-                                    updateSize(vIdx, sIdx, {
-                                      size: e.target.value,
-                                    })
-                                  }
+                              <select
+                                value={size.size}
+                                onChange={(e) =>
+                                  updateSize(vIdx, sIdx, {
+                                    size: e.target.value,
+                                  })
+                                }
                                 className="col-span-2 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                                >
-                                  <option value="">Select Size</option>
-                                  {menTopSizes.map((s) => {
-                                    const isAlreadySelected = variant.sizes.some(
-                                      (sz, idx) => idx !== sIdx && sz.size === s
-                                    );
-                                    return (
-                                      <option key={s} value={s} disabled={isAlreadySelected}>
-                                        {s}
-                                      </option>
-                                    );
-                                  })}
-                                </select>
+                              >
+                                <option value="">Select Size</option>
+                                {menTopSizes.map((s) => {
+                                  const isAlreadySelected = variant.sizes.some(
+                                    (sz, idx) => idx !== sIdx && sz.size === s
+                                  );
+                                  return (
+                                    <option key={s} value={s} disabled={isAlreadySelected}>
+                                      {s}
+                                    </option>
+                                  );
+                                })}
+                              </select>
 
                               <input
                                 type="number"

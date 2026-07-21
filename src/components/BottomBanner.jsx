@@ -1,5 +1,5 @@
 import React from "react";
-import { assets, features } from "../assets/assets";
+import { features } from "../assets/assets";
 import { useAppContext } from "../context/AppContext";
 
 const BottomBanner = () => {
@@ -13,17 +13,16 @@ const BottomBanner = () => {
   const mobileBanner = settings?.homepage?.bannerBottomImageMob?.url;
 
   return (
-    <div
-      className={`relative mt-24 ${
-        !desktopBanner && gradientStyle
-      } min-h-[350px] md:min-h-[450px]`}
+    <section
+      className={`relative mt-24 w-full overflow-hidden ${!desktopBanner && !mobileBanner ? gradientStyle : ""
+        } h-[500px] sm:h-[480px] md:h-[450px] lg:h-[500px]`}
     >
       {/* Desktop Banner */}
       {desktopBanner && (
         <img
           src={desktopBanner}
           alt="banner"
-          className="w-full hidden md:block object-contain"
+          className="hidden md:block absolute inset-0 w-full h-full object-cover"
         />
       )}
 
@@ -32,37 +31,46 @@ const BottomBanner = () => {
         <img
           src={mobileBanner}
           alt="banner"
-          className="w-full md:hidden object-contain"
+          className="block md:hidden absolute inset-0 w-full h-full object-cover"
         />
       )}
 
+      {/* Overlay so content stays readable regardless of image */}
+      {/* {(desktopBanner || mobileBanner) && (
+        <div className="absolute inset-0 bg-white/15 md:bg-gradient-to-l md:from-white/70 md:via-white/40 md:to-transparent" />
+      )} */}
+
       {/* Content */}
-      <div className="absolute inset-0 flex flex-col items-center md:items-end md:justify-center pt-16 md:pt-0 md:pr-24">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-primary mb-6">
+      <div className="relative z-10 h-full flex flex-col items-center justify-center md:items-end md:justify-center px-6 md:pr-16 lg:pr-24">
+        <div className="max-w-xs sm:max-w-sm bg-white/50 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 px-6 py-6 sm:px-8 sm:py-8 text-center md:text-left">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary mb-5 md:mb-6">
             Why We Are the Best?
           </h1>
 
-          {features.map((feature, index) => (
-            <div key={index} className="flex items-center gap-4 mt-2">
-              <img
-                src={feature.icon}
-                alt={feature.title}
-                className="md:w-11 w-9"
-              />
-              <div>
-                <h3 className="text-lg md:text-xl font-semibold">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-500/70 text-xs md:text-sm">
-                  {feature.description}
-                </p>
+          <div className="flex flex-col gap-4 sm:gap-5">
+            {features.map((feature, index) => (
+              <div key={index} className="flex items-center gap-4 text-left">
+                <div className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-primary/10">
+                  <img
+                    src={feature.icon}
+                    alt={feature.title}
+                    className="w-5 sm:w-6"
+                  />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-600 text-xs sm:text-sm mt-0.5">
+                    {feature.description}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

@@ -337,7 +337,7 @@ const MerchantSettingsForm = ({ settings: existingSettings, onSuccess }) => {
   );
 
   return (
-    <form onSubmit={handleSave} className="max-w-6xl mx-auto py-10 space-y-10">
+    <form onSubmit={handleSave} className="py-10 space-y-10">
       {/* Titles */}
       <section className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Page Titles</h2>
@@ -476,18 +476,17 @@ const MerchantSettingsForm = ({ settings: existingSettings, onSuccess }) => {
         <button
           type="submit"
           disabled={loading || !hasChanges}
-          className={`px-10 py-4 rounded-xl font-semibold text-white flex items-center gap-3 transition-all ${
-            loading || !hasChanges
+          className={`px-10 py-4 rounded-xl font-semibold text-white flex items-center gap-3 transition-all ${loading || !hasChanges
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl"
-          }`}
+            }`}
         >
           {loading && <Loader2 className="w-5 h-5 animate-spin" />}
           {loading
             ? "Saving..."
             : existingSettings
-            ? "Update Settings"
-            : "Create Settings"}
+              ? "Update Settings"
+              : "Create Settings"}
         </button>
       </div>
     </form>

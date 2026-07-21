@@ -9,7 +9,7 @@ const Categories = () => {
   const [loading, setLoading] = useState(true);
 
   // Get the merchant ID from frontend .env
-  const merchantId =  import.meta.env.VITE_MERCHANT_ID;
+  const merchantId = import.meta.env.VITE_MERCHANT_ID;
 
   const fetchCategories = async () => {
     try {
@@ -48,26 +48,25 @@ const Categories = () => {
   return (
     <div className="mt-16">
       <p className="text-2xl md:text-3xl font-medium">Categories</p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 mt-6 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 mt-6">
         {categories.length > 0 ? (
           categories.map((category, index) => (
             <div
               key={category._id || index}
-              className="group cursor-pointer py-5 px-3 gap-2 rounded-lg flex flex-col justify-center items-center hover:shadow-md transition"
-              style={{ backgroundColor: "#f9fafb" }}
+              className="group cursor-pointer flex flex-col justify-center items-center transition"
+              // style={{ backgroundColor: "#0e63b8" }}
               onClick={() => {
                 navigate(`/products/${category.name.toLowerCase()}`);
                 scrollTo(0, 0);
               }}
             >
-              <img
-                src={
-                  category.image?.url ||
-                  "/placeholder.png" /* fallback placeholder */
-                }
-                alt={category.name}
-                className="group-hover:scale-110 transition-transform duration-300 max-w-28 h-28 object-contain"
-              />
+              <div className="w-28 h-28 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center">
+                <img
+                  src={category.image?.url || "/placeholder.png"}
+                  alt={category.name}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                />
+              </div>
               <p className="text-sm font-medium text-gray-800 mt-2">
                 {category.name}
               </p>

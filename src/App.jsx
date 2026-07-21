@@ -34,6 +34,8 @@ import Instagramproductspage from "./pages/merchant/Instagramproductspage";
 import Profile from "./pages/merchant/Profile";
 import ProfilePage from "./pages/UserProfile";
 import ExistProfile from "./pages/merchant/ExistProfile";
+import ScrollToTop from "./components/utils/ScrollToTop";
+import Contact from "./pages/Contact";
 
 
 const BUILD_TYPE = import.meta.env.VITE_BUILD_TYPE; // user | merchant
@@ -96,6 +98,24 @@ const App = () => {
         settings?.theme?.fontFamily,
       );
     }
+
+    if (settings?.branding?.logo?.url) {
+      const favicon =
+        document.querySelector("link[rel='icon']") ||
+        document.createElement("link");
+
+      favicon.rel = "icon";
+      favicon.type = "image/png";
+      favicon.href = settings.branding.logo.url;
+
+      if (!document.querySelector("link[rel='icon']")) {
+        document.head.appendChild(favicon);
+      }
+    }
+
+    if (settings?.title) {
+      document.title = settings.title;
+    }
   }, [settings]);
 
   if (isMerchantBuild && authLoading) {
@@ -105,6 +125,7 @@ const App = () => {
   return (
 
     <QueryClientProvider client={queryClient}>
+      <ScrollToTop />
       <div
         className={`text-default min-h-screen text-gray-700 bg-[var(--color-primary-bg)]`}
       >
@@ -137,6 +158,7 @@ const App = () => {
                 <Route path="/loader" element={<Loading />} />
                 <Route path="/buy-now" element={<BuyNow />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/contact" element={<Contact />} />
 
               </>
             )}

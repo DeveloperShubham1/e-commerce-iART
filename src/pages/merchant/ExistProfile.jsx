@@ -23,7 +23,7 @@ export default function ExistProfile() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-7xl rounded-2xl bg-white shadow-sm p-6">
+    <div className="rounded-2xl bg-white shadow-sm p-6">
       {/* Heading */}
       <div className="mb-6">
         <p className="text-xs uppercase tracking-wide text-gray-400">

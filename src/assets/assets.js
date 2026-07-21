@@ -152,30 +152,41 @@ export const footerLinks = [
   {
     title: "Quick Links",
     links: [
-      { text: "Home", url: "#" },
-      { text: "Best Sellers", url: "#" },
-      { text: "Offers & Deals", url: "#" },
-      { text: "Contact Us", url: "#" },
-      { text: "FAQs", url: "#" },
+      { text: "Home", url: "/", external: false },
+      { text: "All Products", url: "/products", external: false },
+      { text: "Cart", url: "/cart", external: false },
+      { text: "Contact Us", url: "/contact", external: false },
+      // { text: "FAQs", url: "/faq", external: false },
     ],
   },
-  {
-    title: "Need help?",
-    links: [
-      { text: "Delivery Information", url: "#" },
-      { text: "Return & Refund Policy", url: "#" },
-      { text: "Payment Methods", url: "#" },
-      { text: "Track your Order", url: "#" },
-      { text: "Contact Us", url: "#" },
-    ],
-  },
+  // {
+  //   title: "Need help?",
+  //   links: [
+  //     { text: "Delivery Information", url: "#" },
+  //     { text: "Return & Refund Policy", url: "#" },
+  //     { text: "Payment Methods", url: "#" },
+  //     { text: "Track your Order", url: "#" },
+  //     { text: "Contact Us", url: "#" },
+  //   ],
+  // },
   {
     title: "Follow Us",
     links: [
-      { text: "Instagram", url: "#" },
-      { text: "Twitter", url: "#" },
-      { text: "Facebook", url: "#" },
-      { text: "YouTube", url: "#" },
+      {
+        text: "Instagram",
+        url: "https://www.instagram.com/fashionflair2013/",
+        external: true,
+      },
+      {
+        text: "Facebook",
+        url: "https://www.facebook.com/fashionflair2013/",
+        external: true,
+      },
+      {
+        text: "YouTube",
+        url: "https://www.youtube.com/@souravthakur1619",
+        external: true,
+      },
     ],
   },
 ];

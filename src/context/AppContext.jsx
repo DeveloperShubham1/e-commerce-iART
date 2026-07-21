@@ -19,7 +19,7 @@ export const AppContextProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [settings, getSettings] = useState(null);
   const [cartItems, setCartItems] = useState([]);
-  const [searchQuery, setSearchQuery] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
   const [merchantData, setMerchantData] = useState({});
 
@@ -41,6 +41,33 @@ export const AppContextProvider = ({ children }) => {
       setIsMerchant(false);
     }
     setAuthLoading(false);
+  };
+
+  // Update Merchant Password
+  const updateMerchantPassword = async (currentPassword, newPassword, confirmPassword) => {
+    try {
+      const { data } = await axios.put("/api/merchant/update-password", {
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+
+      if (data.success) {
+        toast.success(data.message || "Password updated successfully");
+        // Backend clears the auth cookie on success, so log the merchant out locally too
+        setIsMerchant(null);
+        navigate("/merchant");
+        return { success: true };
+      } else {
+        toast.error(data.message || "Failed to update password");
+        return { success: false, message: data.message };
+      }
+    } catch (error) {
+      const message =
+        error.response?.data?.message || error.message || "Failed to update password";
+      toast.error(message);
+      return { success: false, message };
+    }
   };
 
   // Fetch User Auth Status , User Data and Cart Items
@@ -385,7 +412,8 @@ export const AppContextProvider = ({ children }) => {
     settings,
     merchantData,
     setMerchantData,
-    fetchUser
+    fetchUser,
+    updateMerchantPassword
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

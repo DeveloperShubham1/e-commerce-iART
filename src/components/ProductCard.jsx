@@ -38,23 +38,21 @@ const ProductCard = ({ item }) => {
     <div
       onClick={() => {
         navigate(
-          `/products/${categoryId?.name?.toLowerCase()}/${productId}?variant=${
-            variant._id
+          `/products/${categoryId?.name?.toLowerCase()}/${productId}?variant=${variant._id
           }`
         );
         window.scrollTo(0, 0);
       }}
-      className="border border-gray-500/20 rounded-md bg-white px-3 py-2 cursor-pointer hover:shadow-md transition"
+      className="group transition-all duration-300 cursor-pointer"
     >
       {/* Image */}
-      <div className="flex items-center justify-center">
+      <div className="w-full h-64 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
         <img
           src={firstImage}
           alt={name}
-          className="w-full max-w-150px object-contain hover:scale-105 transition"
+          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
         />
       </div>
-
       {/* Content */}
       <div className="mt-2 text-gray-600 text-sm">
         <p className="truncate">{brand}</p>
