@@ -3,6 +3,10 @@ import { useAppContext } from "../context/AppContext";
 import { assets } from "../assets/assets";
 import { toast } from "react-toastify";
 import PayNowButton from "../components/PayNowButton";
+import PaymentQrModal from "../components/merchant/Paymentqrmodal";
+import { usePaymentConfig } from "../services/merchant";
+
+const ADVANCE_AMOUNT = 200;
 
 const Cart = () => {
   const merchantId = import.meta.env.VITE_MERCHANT_ID;
@@ -20,11 +24,59 @@ const Cart = () => {
     setCartItems,
   } = useAppContext();
 
+  const { data: paymentConfigData } = usePaymentConfig();
+  const paymentConfig = paymentConfigData?.data;
+
   const [cartArray, setCartArray] = useState([]);
   const [addresses, setAddresses] = useState([]);
   const [showAddress, setShowAddress] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const [paymentOption, setPaymentOption] = useState("COD");
+  const [paymentOption, setPaymentOption] = useState(""); // "" | "COD" | "Online" | "UPI"
+
+  /* ---------------- QR/UPI AVAILABILITY ---------------- */
+  const upiAvailable = Boolean(paymentConfig?.upi?.enabled);
+  const codAdvanceRequired = upiAvailable; // COD still needs the small advance
+  const [modalMode, setModalMode] = useState(null); // "cod" | "upi" | null
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  const [codPaymentImage, setCodPaymentImage] = useState(null); // ₹200 advance screenshot
+  const [upiPaymentImage, setUpiPaymentImage] = useState(null); // full-amount screenshot
+
+  const openPaymentModal = (mode) => {
+    setModalMode(mode);
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentOptionChange = (value) => {
+    setPaymentOption(value);
+
+    if (value === "COD") {
+      // Only require/open the advance modal if the merchant has UPI enabled,
+      // and only if the customer hasn't already confirmed a screenshot.
+      if (codAdvanceRequired && !codPaymentImage) {
+        openPaymentModal("cod");
+      }
+    } else if (value === "UPI") {
+      // Full-amount UPI payment always needs a fresh screenshot for this order.
+      if (!upiPaymentImage) {
+        openPaymentModal("upi");
+      }
+    }
+
+    // Clear whichever screenshot no longer applies when switching away
+    if (value !== "COD") setCodPaymentImage(null);
+    if (value !== "UPI") setUpiPaymentImage(null);
+  };
+
+  const handlePaymentConfirm = (url) => {
+    if (modalMode === "cod") {
+      setCodPaymentImage(url);
+    } else if (modalMode === "upi") {
+      setUpiPaymentImage(url);
+    }
+    setShowPaymentModal(false);
+    toast.success("Payment screenshot uploaded");
+  };
 
   useEffect(() => {
     (async () => {
@@ -93,48 +145,6 @@ const Cart = () => {
     }
   };
 
-  const placeOrder = async () => {
-    try {
-      if (!user) {
-        toast.info("Please login to place your order");
-        setShowUserLogin(true);
-        return;
-      }
-
-      if (!selectedAddress) {
-        toast.info("Please select a delivery address");
-        return;
-      }
-
-      const orderItems = cartArray.map((item) => ({
-        productId: item._id,
-        variantId: item.variant._id,
-        size: item.selectedSize,
-        quantity: item.quantity,
-        price: item.originalPrice,
-        offerPrice: item.offerPercentage,
-      }));
-
-      if (paymentOption === "COD") {
-        const { data } = await axios.post("/api/user/order/cod", {
-          items: orderItems,
-          address: selectedAddress._id,
-          merchantId,
-        });
-
-        if (data.success) {
-          toast.success(data.message);
-          setCartItems([]);
-          navigate("/my-orders", { state: { justPlaced: true } });
-        } else {
-          toast.error(data.message);
-        }
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to place order");
-    }
-  };
-
   const addressFun = () => {
     if (!user) {
       toast.info("Please Login to add address");
@@ -161,8 +171,93 @@ const Cart = () => {
 
   // Calculate total cart amount (discounted)
   const totalAmount = cartArray.reduce((sum, item) => sum + item.itemTotal, 0);
-  const taxAmount = (totalAmount * 2) / 100;
+  const taxAmount = (totalAmount * 0) / 100;
   const finalTotal = totalAmount + taxAmount;
+
+  /* ---------------- PLACE ORDER ---------------- */
+  const placeOrder = async () => {
+    if (!user) {
+      toast.info("Please login to place your order");
+      setShowUserLogin(true);
+      return;
+    }
+
+    if (!selectedAddress) {
+      toast.info("Please select a delivery address");
+      return;
+    }
+
+    if (!paymentOption) {
+      toast.info("Please select a payment method");
+      return;
+    }
+
+    if (paymentOption === "COD" && codAdvanceRequired && !codPaymentImage) {
+      toast.info(`Please pay the ₹${ADVANCE_AMOUNT} advance and upload the screenshot`);
+      openPaymentModal("cod");
+      return;
+    }
+
+    if (paymentOption === "UPI" && !upiPaymentImage) {
+      toast.info(`Please pay ₹${finalTotal.toFixed(2)} and upload the screenshot`);
+      openPaymentModal("upi");
+      return;
+    }
+
+    const orderItems = cartArray.map((item) => ({
+      productId: item._id,
+      variantId: item.variant._id,
+      size: item.selectedSize,
+      quantity: item.quantity,
+      price: item.originalPrice,
+      offerPrice: item.offerPercentage,
+    }));
+
+    try {
+      if (paymentOption === "COD") {
+        const payload = {
+          items: orderItems,
+          address: selectedAddress._id,
+          merchantId,
+        };
+
+        // Only attach paymentImage when an advance payment was actually required
+        if (codAdvanceRequired) {
+          payload.paymentImage = [codPaymentImage];
+        }
+
+        const { data } = await axios.post("/api/user/order/cod", payload);
+
+        if (data.success) {
+          toast.success(data.message);
+          setCartItems([]);
+          navigate("/my-orders", { state: { justPlaced: true } });
+        } else {
+          toast.error(data.message);
+        }
+      } else if (paymentOption === "UPI") {
+        const payload = {
+          items: orderItems,
+          address: selectedAddress._id,
+          merchantId,
+          paymentImage: [upiPaymentImage],
+          amountPaid: finalTotal,
+        };
+
+        const { data } = await axios.post("/api/orders/upi", payload);
+
+        if (data.success) {
+          toast.success(data.message);
+          setCartItems([]);
+          navigate("/my-orders", { state: { justPlaced: true } });
+        } else {
+          toast.error(data.message);
+        }
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to place order");
+    }
+  };
 
   if (products.length === 0 || cartItems.length === 0) {
     return (
@@ -362,12 +457,58 @@ const Cart = () => {
             </p>
             <select
               value={paymentOption}
-              onChange={(e) => setPaymentOption(e.target.value)}
+              onChange={(e) => handlePaymentOptionChange(e.target.value)}
               className="w-full mt-2 px-3 py-2 border border-gray-300 rounded outline-none cursor-pointer"
             >
-              <option value="COD">Cash On Delivery</option>
-              <option value="Online">Online Payment</option>
+              <option value="" disabled>
+                Select payment method
+              </option>
+              <option value="COD">Cash On Delivery (Partial Payment)</option>
+              <option value="Online">Online Payment(razorpay)</option>
+              {upiAvailable && <option value="UPI">UPI Payment (Pay & Upload)</option>}
             </select>
+
+            {paymentOption === "COD" && codAdvanceRequired && (
+              <div className="mt-2 flex items-center justify-between rounded border bg-white px-3 py-2">
+                <p className="text-xs text-gray-600">
+                  {codPaymentImage ? (
+                    <span className="text-green-600 font-medium">
+                      ₹{ADVANCE_AMOUNT} advance payment confirmed ✓
+                    </span>
+                  ) : (
+                    <span>₹{ADVANCE_AMOUNT} advance payment required for COD</span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openPaymentModal("cod")}
+                  className="text-xs text-primary hover:underline shrink-0 ml-2"
+                >
+                  {codPaymentImage ? "Change" : "Pay now"}
+                </button>
+              </div>
+            )}
+
+            {paymentOption === "UPI" && (
+              <div className="mt-2 flex items-center justify-between rounded border bg-white px-3 py-2">
+                <p className="text-xs text-gray-600">
+                  {upiPaymentImage ? (
+                    <span className="text-green-600 font-medium">
+                      ₹{finalTotal.toFixed(2)} payment confirmed ✓
+                    </span>
+                  ) : (
+                    <span>₹{finalTotal.toFixed(2)} payment required via UPI</span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openPaymentModal("upi")}
+                  className="text-xs text-primary hover:underline shrink-0 ml-2"
+                >
+                  {upiPaymentImage ? "Change" : "Pay now"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -385,13 +526,13 @@ const Cart = () => {
             <span>Shipping</span>
             <span className="text-green-600">Free</span>
           </div>
-          <div className="flex justify-between">
+          {/* <div className="flex justify-between">
             <span>Tax (2%)</span>
             <span>
               {currency}
               {taxAmount.toFixed(2)}
             </span>
-          </div>
+          </div> */}
           <div className="flex justify-between text-lg font-semibold pt-3 border-t">
             <span>Total</span>
             <span>
@@ -401,14 +542,16 @@ const Cart = () => {
           </div>
         </div>
 
-        {paymentOption === "COD" ? (
+        {(paymentOption === "COD" || paymentOption === "UPI") && (
           <button
             onClick={placeOrder}
             className="w-full py-3 mt-4 bg-primary text-white font-medium rounded cursor-pointer hover:bg-primary/80"
           >
             Place Order
           </button>
-        ) : (
+        )}
+
+        {paymentOption === "Online" && (
           <PayNowButton
             merchantId={merchantId}
             addressId={selectedAddress?._id}
@@ -422,7 +565,23 @@ const Cart = () => {
             }))}
           />
         )}
+
+        {!paymentOption && (
+          <p className="mt-4 text-center text-xs text-gray-400">
+            Select a payment method to continue
+          </p>
+        )}
       </div>
+
+      <PaymentQrModal
+        open={showPaymentModal}
+        mode={modalMode}
+        onClose={() => setShowPaymentModal(false)}
+        onConfirm={handlePaymentConfirm}
+        qrCodeImage={paymentConfig?.upi?.qrCodeImage}
+        upiId={paymentConfig?.upi?.upiId}
+        amount={modalMode === "upi" ? finalTotal.toFixed(2) : ADVANCE_AMOUNT}
+      />
     </div>
   );
 };

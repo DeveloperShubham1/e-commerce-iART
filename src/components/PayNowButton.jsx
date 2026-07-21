@@ -91,8 +91,7 @@ const PayNowButton = ({ merchantId, items, addressId }) => {
         console.error(response.error);
       });
     } catch (error) {
-      console.error(error);
-      toast.error("Something went wrong");
+      toast.error(error.response.data.message);
     }
   };
 

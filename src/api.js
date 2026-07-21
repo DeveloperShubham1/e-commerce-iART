@@ -121,3 +121,28 @@ export const connectInstagramSDK = async ({ accessToken, userID }) => {
     );
     return data;
 };
+
+export const updatePaymentConfig = async (formData) => {
+    const { data } = await axios.put("/api/merchant/payment-config", formData, {
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    return data;
+};
+
+export const uploadToS3 = async (formData) => {
+    const { data } = await axios.post("/api/s3/upload", formData, {
+        headers: {
+            "Content-Type": "multipart/form-data",
+        },
+    });
+
+    return data;
+};
+
+export const getPaymentConfig = async () => {
+    const { data } = await axios.get("/api/merchant/payment-config");
+    return data;
+};

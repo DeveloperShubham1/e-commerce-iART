@@ -1,7 +1,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { getInstagramConfig, updateInstagramConfig, verifyInstagramToken, syncInstagramComments, syncInstagramAllComments, connectInstagramSDK } from "../api";
+import { getInstagramConfig, updateInstagramConfig, verifyInstagramToken, syncInstagramComments, syncInstagramAllComments, connectInstagramSDK, getPaymentConfig } from "../api";
 
 
 export const useInstagramConfig = () =>
@@ -93,3 +93,11 @@ export const useConnectInstagramSDK = () => {
         onError: (err) => toast.error(err?.response?.data?.message || "Failed to connect Instagram"),
     });
 };
+
+export const usePaymentConfig = () => {
+    return useQuery({
+        queryKey: ["payment-config"],
+        queryFn: getPaymentConfig,
+    });
+};
+

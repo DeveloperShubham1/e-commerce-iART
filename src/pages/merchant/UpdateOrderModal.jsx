@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
 import { courierPartners } from "../../assets/trackingPartners";
@@ -11,10 +11,29 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
     isPaid: order.isPaid,
     paymentType: order.paymentType,
     trackingPartner: order.trackingPartner || "",
+    amountPaid: order.amountPaid ?? 0,
   });
+
+  const [previewImage, setPreviewImage] = useState(null); // full-size screenshot viewer
 
   const handleChange = (field, value) => {
     setEditable((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Live-computed as the merchant types, mirroring the backend virtual
+  // (totalAmount - amountPaid), so they see the effect before saving.
+  const pendingAmount = useMemo(() => {
+    const paid = Number(editable.amountPaid) || 0;
+    return Math.max(order.totalAmount - paid, 0);
+  }, [editable.amountPaid, order.totalAmount]);
+
+  const handleAmountPaidChange = (value) => {
+    // Keep it numeric and clamp to a sane range as they type
+    let num = value === "" ? 0 : Number(value);
+    if (Number.isNaN(num)) return;
+    if (num < 0) num = 0;
+    if (num > order.totalAmount) num = order.totalAmount;
+    handleChange("amountPaid", num);
   };
 
   const handleUpdate = async () => {
@@ -54,8 +73,14 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white w-full max-w-4xl rounded-xl shadow-lg overflow-y-auto max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full max-w-4xl rounded-xl shadow-lg overflow-y-auto max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* HEADER */}
         <div className="flex justify-between items-center p-5 border-b">
           <div>
@@ -126,6 +151,62 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
             </div>
           </div>
 
+          {/* PAYMENT OVERVIEW: amount paid / pending + proof screenshots */}
+          <div className="bg-gray-50 p-4 rounded-md border">
+            <h3 className="font-semibold text-base mb-3">Payment Details</h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 text-sm">
+              <div>
+                <p className="text-gray-500">Order Total</p>
+                <p className="font-semibold text-base">
+                  {currency} {order.totalAmount}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500">Pending Amount</p>
+                <p
+                  className={`font-semibold text-base ${pendingAmount > 0 ? "text-red-600" : "text-green-600"
+                    }`}
+                >
+                  {currency} {pendingAmount}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500 mb-1">Payment Type</p>
+                <p className="font-semibold uppercase">{order.paymentType}</p>
+              </div>
+            </div>
+
+            {/* Payment proof screenshots, if any */}
+            {order.paymentImage?.length > 0 ? (
+              <div>
+                <p className="text-gray-500 text-sm mb-2">
+                  Payment Screenshot{order.paymentImage.length > 1 ? "s" : ""}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {order.paymentImage.map((url, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setPreviewImage(url)}
+                      className="block"
+                    >
+                      <img
+                        src={url}
+                        alt={`Payment proof ${idx + 1}`}
+                        className="h-20 w-20 object-cover rounded border hover:opacity-80 transition"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">
+                No payment screenshot uploaded
+              </p>
+            )}
+          </div>
+
           {/* EDITABLE FIELDS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             {/* Payment Status */}
@@ -140,6 +221,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
                   }
                 >
                   <option value="pending">Pending</option>
+                  <option value="partial">Partially Paid</option>
                   <option value="paid">Paid</option>
                   <option value="failed">Failed</option>
                 </select>
@@ -162,6 +244,27 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
               </select>
             </div>
 
+            {/* Amount Paid */}
+            {editable.paymentType != "online" && (
+              <div>
+                <label className="font-semibold">
+                  Amount Paid ({currency})
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={order.totalAmount}
+                  className="w-full border p-2 rounded"
+                  value={editable.amountPaid}
+                  onChange={(e) => handleAmountPaidChange(e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Pending: {currency} {pendingAmount} of {currency}{" "}
+                  {order.totalAmount}
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="font-semibold">Payment Type</label>
               <p className="w-full border p-2 rounded uppercase">
@@ -169,37 +272,6 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
               </p>
             </div>
 
-            {/* Status */}
-            {(editable.orderStatus === "shipped" ||
-              editable.orderStatus === "delivered" ||
-              editable.orderStatus === "cancelled") && (
-                <div>
-                  <label className="font-semibold">
-                    Tracking ID
-                    {editable.orderStatus === "shipped" && (
-                      <span className="text-red-500 ml-1">*</span>
-                    )}
-                  </label>
-
-                  <input
-                    type="text"
-                    className={`w-full border p-2 rounded ${editable.orderStatus === "shipped" &&
-                      (!editable.status || editable.status.trim() === "")
-                      ? "border-red-500"
-                      : ""
-                      }`}
-                    value={editable.status || ""}
-                    onChange={(e) => handleChange("status", e.target.value)}
-                  />
-
-                  {editable.orderStatus === "shipped" &&
-                    (!editable.status || editable.status.trim() === "") && (
-                      <p className="text-xs text-red-500 mt-1">
-                        Tracking ID is required for shipped orders
-                      </p>
-                    )}
-                </div>
-              )}
 
             {/* Tracking Partner */}
             {(editable.orderStatus === "shipped" ||
@@ -235,22 +307,39 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
                 </div>
               )}
 
-            {/* Is Paid */}
-            {/* {editable.paymentType != "online" && (
-              <div>
-                <label className="font-semibold">Is Paid</label>
-                <select
-                  className="w-full border p-2 rounded"
-                  value={String(editable.isPaid)}
-                  onChange={(e) =>
-                    handleChange("isPaid", e.target.value === "true")
-                  }
-                >
-                  <option value="false">No</option>
-                  <option value="true">Yes</option>
-                </select>
-              </div>
-            )} */}
+            {/* Status tracking id */}
+            {(editable.orderStatus === "shipped" ||
+              editable.orderStatus === "delivered" ||
+              editable.orderStatus === "cancelled") && (
+                <div>
+                  <label className="font-semibold">
+                    Tracking ID
+                    {editable.orderStatus === "shipped" && (
+                      <span className="text-red-500 ml-1">*</span>
+                    )}
+                  </label>
+
+                  <input
+                    type="text"
+                    className={`w-full border p-2 rounded ${editable.orderStatus === "shipped" &&
+                      (!editable.status || editable.status.trim() === "")
+                      ? "border-red-500"
+                      : ""
+                      }`}
+                    value={editable.status || ""}
+                    onChange={(e) => handleChange("status", e.target.value)}
+                  />
+
+                  {editable.orderStatus === "shipped" &&
+                    (!editable.status || editable.status.trim() === "") && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Tracking ID is required for shipped orders
+                      </p>
+                    )}
+                </div>
+              )}
+
+
           </div>
 
           {/* TOTAL + SAVE */}
@@ -278,6 +367,33 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
           </div>
         </div>
       </div>
+
+      {/* FULL-SIZE SCREENSHOT VIEWER */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+          onClick={(e) => {
+            e.stopPropagation();
+            setPreviewImage(null);
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setPreviewImage(null);
+            }}
+            className="absolute top-5 right-5 text-white"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={previewImage}
+            alt="Payment proof full size"
+            className="max-h-[85vh] max-w-full rounded shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };
