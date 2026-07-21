@@ -13,7 +13,10 @@ import {
   placeOrder,
 } from "../controllers/orderController.js";
 import { productListByUser } from "../controllers/productController.js";
-import { getMerchantSettings } from "../controllers/merchantController.js";
+import {
+  getMerchantSettings,
+  getPaymentConfigforUser,
+} from "../controllers/merchantController.js";
 import {
   igExchange,
   completeGuestProfile,
@@ -34,5 +37,6 @@ userRouter.get("/product/list", productListByUser);
 userRouter.post("/order/cod", authUser, placeOrder);
 userRouter.get("/orders", authUser, getOrdersByUserId);
 userRouter.get("/settings", getMerchantSettings);
+userRouter.get("/payment-config", getPaymentConfigforUser);
 
 export default userRouter;

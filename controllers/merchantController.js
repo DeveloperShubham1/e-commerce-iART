@@ -319,13 +319,13 @@ export const updatePaymentConfig = async (req, res) => {
   try {
     const merchantId = req.merchant?._id;
 
-    // Check if merchant exists
     const merchant = await Merchant.findById(merchantId);
 
     if (!merchant) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Merchant not found." });
+      return res.status(404).json({
+        success: false,
+        message: "Merchant not found.",
+      });
     }
 
     const {
@@ -333,18 +333,28 @@ export const updatePaymentConfig = async (req, res) => {
       razorpaySecret,
       isRazorpayenabled,
       upiEnabled,
+      codEnabled,
       upiId,
       qrCodeImage,
     } = req.body;
 
     const updateData = {
-      razorpayKey: razorpayKey || null,
-      razorpaySecret: razorpaySecret || null,
       isRazorpayenabled: isRazorpayenabled === true,
+      "upi.codEnabled": codEnabled === true,
       "upi.enabled": upiEnabled === true,
       "upi.upiId": upiId || null,
       "upi.qrCodeImage": qrCodeImage || null,
     };
+
+    // Update only if a new key is entered
+    if (razorpayKey && !razorpayKey.startsWith("****")) {
+      updateData.razorpayKey = razorpayKey.trim();
+    }
+
+    // Update only if a new secret is entered
+    if (razorpaySecret && !razorpaySecret.startsWith("*")) {
+      updateData.razorpaySecret = razorpaySecret.trim();
+    }
 
     const updatedMerchant = await Merchant.findByIdAndUpdate(
       merchantId,
@@ -355,7 +365,16 @@ export const updatePaymentConfig = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Payment configuration updated successfully.",
-      data: updatedMerchant,
+      data: {
+        isRazorpayenabled: updatedMerchant.isRazorpayenabled,
+        razorpayKey: updatedMerchant.razorpayKey
+          ? `****${updatedMerchant.razorpayKey.slice(-4)}`
+          : "",
+        razorpaySecret: updatedMerchant.razorpaySecret
+          ? "****************"
+          : "",
+        upi: updatedMerchant.upi,
+      },
     });
   } catch (error) {
     console.error(error);
@@ -386,7 +405,14 @@ export const getPaymentConfig = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Payment configuration fetched successfully.",
-      data: merchant,
+      data: {
+        isRazorpayenabled: merchant.isRazorpayenabled,
+        razorpayKey: merchant.razorpayKey
+          ? `****${merchant.razorpayKey.slice(-4)}`
+          : "",
+        razorpaySecret: merchant.razorpaySecret ? "****************" : "",
+        upi: merchant.upi,
+      },
     });
   } catch (error) {
     console.error(error);
@@ -1432,3 +1458,41 @@ export async function updateInstagramConnectSdk(req, res) {
     });
   }
 }
+
+export const getPaymentConfigforUser = async (req, res) => {
+  try {
+    const merchantId = req.query.merchantId;
+
+    const merchant = await Merchant.findById(merchantId).select(
+      "razorpayKey razorpaySecret isRazorpayenabled upi",
+    );
+
+    if (!merchant) {
+      return res.status(404).json({
+        success: false,
+        message: "Merchant not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment configuration fetched successfully.",
+      data: {
+        isRazorpayenabled: merchant.isRazorpayenabled,
+        // razorpayKey: merchant.razorpayKey
+        //   ? `****${merchant.razorpayKey.slice(-4)}`
+        //   : "",
+        // razorpaySecret: merchant.razorpaySecret ? "****************" : "",
+        upi: merchant.upi,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong.",
+      error: error.message,
+    });
+  }
+};

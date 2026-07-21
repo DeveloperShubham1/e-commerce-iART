@@ -20,6 +20,11 @@ const MerchantSchema = new mongoose.Schema({
       default: false,
     },
 
+    codEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
     upiId: {
       type: String,
       default: null,
