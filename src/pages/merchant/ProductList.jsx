@@ -213,7 +213,7 @@ const ProductList = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto pb-10 bg-gray-50">
+    <div className="flex-1 overflow-y-auto pb-10 bg-gray-50 ">
       <div className="">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">

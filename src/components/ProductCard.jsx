@@ -3,103 +3,143 @@ import { assets } from "../assets/assets";
 import { useAppContext } from "../context/AppContext";
 
 const ProductCard = ({ item }) => {
-  // 🛡️ HARD GUARD (prevents crash)
   if (!item) return null;
 
   const { currency, navigate } = useAppContext();
 
-  const { productId, name, brand, categoryId, rating = 4, variant } = item;
+  const {
+    productId,
+    name,
+    brand,
+    categoryId,
+    rating = 4,
+    variant,
+  } = item;
 
   if (!variant) return null;
 
-  const firstImage = variant.images?.[variant?.thumbnailIndex] || "";
+  // First image
+  const firstImage =
+    variant.images?.[variant.thumbnailIndex || 0] ||
+    variant.images?.[0] ||
+    "";
 
-  // Pricing from variant sizes
+  // Prices
   const prices =
     variant.sizes?.map((size) => {
-      const discountedPrice = size.offerPrice
-        ? size.price - Math.round((size.price * size.offerPrice) / 100)
-        : size.price;
+      const discount = size.offerPrice || 0;
+
+      const discountedPrice =
+        discount > 0
+          ? size.price - (size.price * discount) / 100
+          : size.price;
 
       return {
-        price: size.price,
-        discountedPrice,
-        discountPercent: size.offerPrice || 0,
+        regularPrice: size.price,
+        offerPrice: discountedPrice,
+        discount,
       };
     }) || [];
 
   if (!prices.length) return null;
 
-  const minRegularPrice = Math.min(...prices.map((p) => p.price));
-  const minOfferPrice = Math.min(...prices.map((p) => p.discountedPrice));
-  const maxDiscount = Math.max(...prices.map((p) => p.discountPercent));
+  const minRegularPrice = Math.min(
+    ...prices.map((p) => p.regularPrice)
+  );
+
+  const minOfferPrice = Math.min(
+    ...prices.map((p) => p.offerPrice)
+  );
+
+  const maxDiscount = Math.max(
+    ...prices.map((p) => p.discount)
+  );
 
   return (
     <div
       onClick={() => {
         navigate(
-          `/products/${categoryId?.name?.toLowerCase()}/${productId}?variant=${variant._id
-          }`
+          `/products/${categoryId?.name?.toLowerCase()}/${productId}?variant=${variant._id}`
         );
         window.scrollTo(0, 0);
       }}
-      className="group transition-all duration-300 cursor-pointer"
+      className="group cursor-pointer bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all duration-300"
     >
       {/* Image */}
-      <div className="w-full h-64 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+      <div className="relative w-full h-72 bg-slate-100 overflow-hidden">
+        {maxDiscount > 0 && (
+          <span className="absolute top-3 right-3 z-10 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+            {maxDiscount}% OFF
+          </span>
+        )}
+
         <img
           src={firstImage}
           alt={name}
-          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
       </div>
+
       {/* Content */}
-      <div className="mt-2 text-gray-600 text-sm">
-        <p className="truncate">{brand}</p>
-        <p className="font-medium text-gray-800 truncate">{name}</p>
+      <div className="p-4">
+        <p className="text-xs uppercase tracking-wider text-slate-400">
+          {brand}
+        </p>
+
+        <h3 className="text-sm font-semibold text-slate-800 line-clamp-1 mt-1">
+          {name}
+        </h3>
 
         {/* Rating */}
-        <div className="flex items-center gap-1 mt-1">
+        <div className="flex items-center gap-1 mt-2">
           {Array(5)
             .fill("")
             .map((_, i) => (
               <img
                 key={i}
-                className="w-3"
                 src={i < rating ? assets.star_icon : assets.star_dull_icon}
+                className="w-3"
                 alt=""
               />
             ))}
-          <span className="text-xs">({rating})</span>
+
+          <span className="text-xs text-slate-500">
+            ({rating})
+          </span>
         </div>
 
         {/* Price */}
-        <div className="mt-2">
-          <p className="text-primary font-semibold">
+        <div className="mt-3 flex items-center gap-2">
+          <span className="text-lg font-bold text-slate-900">
             {currency}
-            {minOfferPrice}
-            {minRegularPrice > minOfferPrice && (
-              <>
-                <span className="line-through text-gray-400 text-xs ml-1">
-                  {currency}
-                  {minRegularPrice}
-                </span>
-                <span className="text-green-600 text-xs ml-1">
-                  ({maxDiscount}% OFF)
-                </span>
-              </>
-            )}
-          </p>
+            {minOfferPrice.toFixed(0)}
+          </span>
+
+          {maxDiscount > 0 && (
+            <>
+              <span className="text-sm line-through text-slate-400">
+                {currency}
+                {minRegularPrice}
+              </span>
+
+             
+            </>
+          )}
         </div>
 
         {/* Color */}
-        <div className="flex items-center gap-1 mt-2">
-          <span
-            className="w-4 h-4 rounded-full border"
-            style={{ backgroundColor: variant.colorCode }}
-          />
-          <span className="text-xs">{variant.color}</span>
-        </div>
+        {variant.color && (
+          <div className="flex items-center gap-2 mt-3">
+            <span
+              className="w-4 h-4 rounded-full border"
+              style={{ backgroundColor: variant.colorCode }}
+            />
+
+            <span className="text-xs text-slate-500">
+              {variant.color}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

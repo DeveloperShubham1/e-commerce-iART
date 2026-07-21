@@ -68,7 +68,7 @@ export default function SizeChartDialog() {
                     <div className="flex items-center gap-5  border-b border-neutral-200 sm:gap-6">
                         <button
                             onClick={() => setTab("chart")}
-                            className={`relative shrink-0 whitespace-nowrap px-0.5 pb-3 text-sm font-semibold transition-colors ${tab === "chart" ? "text-rose-500" : "text-neutral-500 hover:text-neutral-800"
+                            className={`relative shrink-0 whitespace-nowrap px-0.5 pb-3 text-sm font-semibold  transition-colors ${tab === "chart" ? "text-rose-500" : "text-neutral-500 hover:text-neutral-800"
                                 }`}
                         >
                             Size Chart

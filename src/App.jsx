@@ -137,7 +137,8 @@ const App = () => {
         <ToastContainer position="top-center" autoClose={3000} />
 
         <div
-          className={isMerchantBuild ? "" : "px-6 md:px-16 lg:px-24 xl:px-32 "}
+          // className={isMerchantBuild ? "" : "px-6 md:px-16 lg:px-24 xl:px-32 "}
+          className=""
         >
           <Routes>
             {/* ================= USER ROUTES ================= */}
