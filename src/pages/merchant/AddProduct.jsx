@@ -25,7 +25,7 @@ const emptyVariant = () => ({
     emptySize("S"),
     emptySize("M"),
     emptySize("L"),
-    emptySize("XL")
+    emptySize("XL"),
   ],
   isTrending: false,
   trendingOrder: null,
@@ -64,7 +64,7 @@ export default function AddProductVariants() {
     (async () => {
       try {
         const { data } = await axios.get(
-          `/api/subcategories?categoryId=${categoryId}`
+          `/api/subcategories?categoryId=${categoryId}`,
         );
         if (data.success) setSubcategories(data.subcategories || []);
       } catch (err) {
@@ -105,67 +105,31 @@ export default function AddProductVariants() {
   };
 
   const MAX_IMAGES = 5;
-  const REQUIRED_WIDTH = 1097 || 1098;
-  const REQUIRED_HEIGHT = 823; 
 
-  const getImageDimensions = (file) =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
-        URL.revokeObjectURL(url);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("Invalid image"));
-      };
-      img.src = url;
-    });
-
-  const handleFilesChange = async (vIdx, newFileList) => {
+  const handleFilesChange = (vIdx, newFileList) => {
     const currentFiles = variants[vIdx].files || [];
     const incomingFiles = Array.from(newFileList || []);
+
     if (!incomingFiles.length) return;
 
-    // Dedupe against what's already selected
+    // Prevent duplicate files
     const isSameFile = (a, b) =>
-      a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+      a.name === b.name &&
+      a.size === b.size &&
+      a.lastModified === b.lastModified;
 
     const newlyAdded = incomingFiles.filter(
-      (f) => !currentFiles.some((cf) => isSameFile(cf, f))
+      (f) => !currentFiles.some((cf) => isSameFile(cf, f)),
     );
 
-    // Validate dimensions of only the newly picked files
-    const validFiles = [];
-    const rejected = [];
-
-    for (const file of newlyAdded) {
-      try {
-        const { width, height } = await getImageDimensions(file);
-        if (width === REQUIRED_WIDTH && height === REQUIRED_HEIGHT) {
-          validFiles.push(file);
-        } else {
-          rejected.push(`${file.name} (${width}x${height})`);
-        }
-      } catch {
-        rejected.push(`${file.name} (invalid image)`);
-      }
-    }
-
-    if (rejected.length) {
-      toast.error(
-        `Images must be exactly ${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}px. Rejected: ${rejected.join(", ")}`
-      );
-    }
-
-    let finalFiles = [...currentFiles, ...validFiles];
+    let finalFiles = [...currentFiles, ...newlyAdded];
 
     if (finalFiles.length > MAX_IMAGES) {
       const droppedCount = finalFiles.length - MAX_IMAGES;
       finalFiles = finalFiles.slice(0, MAX_IMAGES);
+
       toast.error(
-        `Maximum ${MAX_IMAGES} images per variant. ${droppedCount} image(s) were not added.`
+        `Maximum ${MAX_IMAGES} images per variant. ${droppedCount} image(s) were not added.`,
       );
     }
 
@@ -277,7 +241,7 @@ export default function AddProductVariants() {
     e.preventDefault();
     if (!name.trim()) return toast.error("Product name is required");
     if (!categoryId) return toast.error("Please select a category");
-    if (!subcategoryId) return toast.error("Please select a subcategory");
+    // if (!subcategoryId) return toast.error("Please select a subcategory");
 
     for (let i = 0; i < variants.length; i++) {
       const v = variants[i];
@@ -289,11 +253,11 @@ export default function AddProductVariants() {
         const s = v.sizes[j];
         if (!s.size.trim())
           return toast.error(
-            `Variant ${i + 1}, Size ${j + 1}: Size name required`
+            `Variant ${i + 1}, Size ${j + 1}: Size name required`,
           );
         if (!s.price || isNaN(s.price) || s.price <= 0)
           return toast.error(
-            `Variant ${i + 1}, Size ${j + 1}: Valid price required`
+            `Variant ${i + 1}, Size ${j + 1}: Valid price required`,
           );
       }
     }
@@ -320,9 +284,9 @@ export default function AddProductVariants() {
               variantSku: s.variantSku?.trim() || undefined,
             })),
             isTrending: v.isTrending || false,
-            trendingOrder: v.isTrending ? v.trendingOrder ?? null : null,
+            trendingOrder: v.isTrending ? (v.trendingOrder ?? null) : null,
           };
-        })
+        }),
       );
 
       setProgressStage("adding");
@@ -331,7 +295,7 @@ export default function AddProductVariants() {
         description: description.trim(),
         brand: brand.trim(),
         categoryId,
-        subcategoryId,
+        ...(subcategoryId && { subcategoryId }),
         variants: preparedVariants,
       };
 
@@ -349,7 +313,7 @@ export default function AddProductVariants() {
       }
     } catch (err) {
       toast.error(
-        err.response?.data?.message || err.message || "Something went wrong"
+        err.response?.data?.message || err.message || "Something went wrong",
       );
     } finally {
       setShowProgress(false);
@@ -432,14 +396,14 @@ export default function AddProductVariants() {
               </div>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                  Subcategory <span className="text-red-500">*</span>
+                  Subcategory
                 </label>
                 <select
                   value={subcategoryId}
                   onChange={(e) => setSubcategoryId(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   disabled={!subcategories.length}
-                  required
+                  // required
                 >
                   <option value="">
                     {subcategories.length
@@ -608,8 +572,7 @@ export default function AddProductVariants() {
                             onChange={(e) => {
                               handleFilesChange(vIdx, e.target.files);
                               e.target.value = "";
-                            }
-                            }
+                            }}
                             className="hidden"
                             id={`file-${vIdx}`}
                           />
@@ -632,10 +595,11 @@ export default function AddProductVariants() {
                               return (
                                 <div
                                   key={fIdx}
-                                  className={`relative group cursor-pointer border-2 rounded-lg ${isThumb
-                                    ? "border-blue-600"
-                                    : "border-gray-200"
-                                    }`}
+                                  className={`relative group cursor-pointer border-2 rounded-lg ${
+                                    isThumb
+                                      ? "border-blue-600"
+                                      : "border-gray-200"
+                                  }`}
                                   onClick={() =>
                                     updateVariant(vIdx, {
                                       thumbnailIndex: fIdx,
@@ -704,10 +668,14 @@ export default function AddProductVariants() {
                                 <option value="">Select Size</option>
                                 {menTopSizes.map((s) => {
                                   const isAlreadySelected = variant.sizes.some(
-                                    (sz, idx) => idx !== sIdx && sz.size === s
+                                    (sz, idx) => idx !== sIdx && sz.size === s,
                                   );
                                   return (
-                                    <option key={s} value={s} disabled={isAlreadySelected}>
+                                    <option
+                                      key={s}
+                                      value={s}
+                                      disabled={isAlreadySelected}
+                                    >
                                       {s}
                                     </option>
                                   );

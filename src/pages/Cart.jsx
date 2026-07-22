@@ -4,12 +4,12 @@ import { assets } from "../assets/assets";
 import { toast } from "react-toastify";
 import PayNowButton from "../components/PayNowButton";
 import PaymentQrModal from "../components/merchant/PaymentQrModal";
-import { usePaymentConfig } from "../services/merchant";
+import { usePaymentConfigForUser } from "../services/user";
 import {
   loadCheckoutState,
   saveCheckoutState,
   clearCheckoutState,
-} from "../utils/checkoutPersistence";
+} from "../utils/Checkoutpersistence";
 
 const ADVANCE_AMOUNT = 200;
 
@@ -29,7 +29,7 @@ const Cart = () => {
     setCartItems,
   } = useAppContext();
 
-  const { data: paymentConfigData } = usePaymentConfig();
+  const { data: paymentConfigData } = usePaymentConfigForUser(merchantId);
   const paymentConfig = paymentConfigData?.data;
 
   const [cartArray, setCartArray] = useState([]);

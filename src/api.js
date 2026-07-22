@@ -146,3 +146,8 @@ export const getPaymentConfig = async () => {
     const { data } = await axios.get("/api/merchant/payment-config");
     return data;
 };
+
+export const getPaymentConfigForUser = async (merchantId) => {
+    const { data } = await axios.get(`/api/user/payment-config?merchantId=${merchantId}`);
+    return data;
+};

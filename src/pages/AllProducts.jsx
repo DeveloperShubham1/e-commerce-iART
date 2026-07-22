@@ -141,7 +141,7 @@ const AllProducts = () => {
   }, [rawProducts]);
 
   return (
-    <div className="mt-16 flex flex-col">
+    <div className="mx-5 mt-16 flex flex-col">
       {/* ===== Header ===== */}
       <div className="flex flex-col items-end w-max">
         <p className="text-2xl font-medium uppercase">All Products</p>

@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 // Import from api.js
 import {
-    updateProfile
+    updateProfile,
+    getPaymentConfigForUser
 } from "../api";
 import { toast } from "react-toastify";
 
@@ -26,5 +27,13 @@ export const useUpdateProfile = () => {
                 err?.response?.data?.message || "Something went wrong"
             );
         },
+    });
+};
+
+
+export const usePaymentConfigForUser = (merchantId) => {
+    return useQuery({
+        queryKey: ["payment-config", merchantId],
+        queryFn: () => getPaymentConfigForUser(merchantId),
     });
 };
