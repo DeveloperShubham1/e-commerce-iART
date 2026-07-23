@@ -13,6 +13,7 @@ import { useCreateInstagramProduct } from "../../services/instaProduct";
 import { useInstagramPosts } from "../../services/instaProduct";
 import { useProductList } from "../../services/products";
 import { toast } from "react-toastify";
+import { useInstagramConfig } from "@/services/merchant";
 
 /** Safely pulls the first variant image without throwing on missing data. */
 function getProductThumbnail(product) {
@@ -29,6 +30,9 @@ function formatPostDate(timestamp) {
 }
 
 export default function CreateInstagramProductModal({ onClose }) {
+  const { data, isLoading } = useInstagramConfig();
+  console.log("data", data);
+
   const [form, setForm] = useState({
     instagram_media_id: "",
     product_id: "",
@@ -105,7 +109,7 @@ export default function CreateInstagramProductModal({ onClose }) {
     setErrors((prev) => ({ ...prev, instagram_media_id: null, general: null }));
   };
 
-  const USER_FRONTEND_URL = import.meta.env.VITE_USER_FRONTEND_URL;
+  const USER_FRONTEND_URL = data?.instagram?.siteBaseUrl || import.meta.env.VITE_USER_FRONTEND_URL;
   const selectProduct = (product) => {
     const category = product.categoryId?.name?.toLowerCase()?.replace(/\s+/g, "-") || "product";
     setForm((prev) => ({
