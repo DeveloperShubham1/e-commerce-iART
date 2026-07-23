@@ -22,8 +22,6 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const ADVANCE_AMOUNT = 200;
-
 // ---------------------------------------------------------------------------
 // Navigating to /add-address fully unmounts BuyNow, so local useState
 // (quantity, paymentOption, selectedAddress, uploaded screenshots) would
@@ -245,11 +243,10 @@ const PaymentQrModal = ({
             />
             <label
               htmlFor="payment-screenshot"
-              className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
-                preview
-                  ? "border-emerald-400 bg-emerald-50/20"
-                  : "border-slate-200 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/10"
-              }`}
+              className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-xl cursor-pointer transition-all ${preview
+                ? "border-emerald-400 bg-emerald-50/20"
+                : "border-slate-200 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/10"
+                }`}
             >
               {preview ? (
                 <div className="flex items-center gap-4 w-full">
@@ -347,6 +344,7 @@ const BuyNow = () => {
   const upiAvailable = Boolean(paymentConfig?.upi?.enabled);
   const codAvailable = Boolean(paymentConfig?.upi?.codEnabled);
   const razpayAvailable = Boolean(paymentConfig?.isRazorpayenabled);
+  const ADVANCE_AMOUNT = Number(paymentConfig?.upi?.upiAdvancePayment) || 0;
 
   const codAdvanceRequired = upiAvailable; // COD still needs the small advance
   const [modalMode, setModalMode] = useState(null); // "cod" | "upi" | null
@@ -358,6 +356,16 @@ const BuyNow = () => {
   const openPaymentModal = (mode) => {
     setModalMode(mode);
     setShowPaymentModal(true);
+  };
+
+  const handlePaymentSelection = (value) => {
+    if (!user) {
+      toast.info("Please Login to select a payment option");
+      setShowUserLogin(true);
+      return;
+    }
+
+    handlePaymentOptionChange(value);
   };
 
   const handlePaymentOptionChange = (value) => {
@@ -401,7 +409,10 @@ const BuyNow = () => {
     const saved = loadBuyNowState(storageKey);
     if (saved) {
       if (saved.quantity) setQuantity(saved.quantity);
-      if (saved.paymentOption) setPaymentOption(saved.paymentOption);
+      // if (saved.paymentOption) setPaymentOption(saved.paymentOption);
+      if (user && saved.paymentOption) {
+        setPaymentOption(saved.paymentOption);
+      }
       if (saved.codPaymentImage) setCodPaymentImage(saved.codPaymentImage);
       if (saved.upiPaymentImage) setUpiPaymentImage(saved.upiPaymentImage);
     }
@@ -423,6 +434,33 @@ const BuyNow = () => {
   }, [
     hasRestored,
     storageKey,
+    quantity,
+    paymentOption,
+    codPaymentImage,
+    upiPaymentImage,
+    selectedAddress,
+  ]);
+
+  useEffect(() => {
+    if (!user) {
+      setPaymentOption("");
+      setCodPaymentImage(null);
+      setUpiPaymentImage(null);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    saveBuyNowState(storageKey, {
+      quantity,
+      paymentOption,
+      codPaymentImage,
+      upiPaymentImage,
+      selectedAddressId: selectedAddress?._id || null,
+    });
+  }, [
+    user,
     quantity,
     paymentOption,
     codPaymentImage,
@@ -531,7 +569,7 @@ const BuyNow = () => {
   }
 
   /* ---------------- TOTALS ---------------- */
-  const subtotal = item.itemTotal;
+  const subtotal = item.itemTotal || item.originalPrice;
   const taxAmount = subtotal * 0.0;
   const finalTotal = subtotal + taxAmount;
 
@@ -857,12 +895,11 @@ const BuyNow = () => {
                   {/* Option: COD — gated by codAvailable, same as the select-based version */}
                   {codAvailable && (
                     <label
-                      onClick={() => handlePaymentOptionChange("COD")}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                        paymentOption === "COD"
-                          ? "border-indigo-600 bg-indigo-50/20 ring-1 ring-indigo-600"
-                          : "border-slate-200/80 hover:border-slate-300 bg-white"
-                      }`}
+                      // onClick={() => handlePaymentSelection("COD")}
+                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${paymentOption === "COD"
+                        ? "border-indigo-600 bg-indigo-50/20 ring-1 ring-indigo-600"
+                        : "border-slate-200/80 hover:border-slate-300 bg-white"
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <Banknote className="w-4 h-4 text-slate-600" />
@@ -881,7 +918,7 @@ const BuyNow = () => {
                         type="radio"
                         name="payment"
                         checked={paymentOption === "COD"}
-                        onChange={() => {}}
+                        onChange={() => handlePaymentSelection("COD")}
                         className="text-indigo-600 focus:ring-indigo-500"
                       />
                     </label>
@@ -890,12 +927,11 @@ const BuyNow = () => {
                   {/* Option: Razorpay — gated by razpayAvailable, same as the select-based version */}
                   {razpayAvailable && (
                     <label
-                      onClick={() => handlePaymentOptionChange("Online")}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                        paymentOption === "Online"
-                          ? "border-indigo-600 bg-indigo-50/20 ring-1 ring-indigo-600"
-                          : "border-slate-200/80 hover:border-slate-300 bg-white"
-                      }`}
+                      // onClick={() => handlePaymentSelection("Online")}
+                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${paymentOption === "Online"
+                        ? "border-indigo-600 bg-indigo-50/20 ring-1 ring-indigo-600"
+                        : "border-slate-200/80 hover:border-slate-300 bg-white"
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <CreditCard className="w-4 h-4 text-slate-600" />
@@ -912,7 +948,7 @@ const BuyNow = () => {
                         type="radio"
                         name="payment"
                         checked={paymentOption === "Online"}
-                        onChange={() => {}}
+                        onChange={() => handlePaymentSelection("Online")}
                         className="text-indigo-600 focus:ring-indigo-500"
                       />
                     </label>
@@ -921,12 +957,11 @@ const BuyNow = () => {
                   {/* Option: UPI */}
                   {upiAvailable && (
                     <label
-                      onClick={() => handlePaymentOptionChange("UPI")}
-                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                        paymentOption === "UPI"
-                          ? "border-indigo-600 bg-indigo-50/20 ring-1 ring-indigo-600"
-                          : "border-slate-200/80 hover:border-slate-300 bg-white"
-                      }`}
+                      // onClick={() => handlePaymentSelection("UPI")}
+                      className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${paymentOption === "UPI"
+                        ? "border-indigo-600 bg-indigo-50/20 ring-1 ring-indigo-600"
+                        : "border-slate-200/80 hover:border-slate-300 bg-white"
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <QrCode className="w-4 h-4 text-slate-600" />
@@ -943,7 +978,7 @@ const BuyNow = () => {
                         type="radio"
                         name="payment"
                         checked={paymentOption === "UPI"}
-                        onChange={() => {}}
+                        onChange={() => handlePaymentSelection("UPI")}
                         className="text-indigo-600 focus:ring-indigo-500"
                       />
                     </label>

@@ -105,12 +105,13 @@ export default function CreateInstagramProductModal({ onClose }) {
     setErrors((prev) => ({ ...prev, instagram_media_id: null, general: null }));
   };
 
+  const USER_FRONTEND_URL = import.meta.env.VITE_USER_FRONTEND_URL;
   const selectProduct = (product) => {
     const category = product.categoryId?.name?.toLowerCase()?.replace(/\s+/g, "-") || "product";
     setForm((prev) => ({
       ...prev,
       product_id: product._id,
-      product_url: `https://eshop.iarttechnologies.com/products/${category}/${product._id}`,
+      product_url: `${USER_FRONTEND_URL}/products/${category}/${product._id}`,
       title: product.name,
     }));
     setErrors((prev) => ({ ...prev, product_id: null, general: null }));

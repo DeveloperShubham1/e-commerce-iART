@@ -76,6 +76,7 @@ const DEFAULT_CONFIG = {
   codEnabled: false,
   upiId: "",
   qrCodeImage: "",
+  upiAdvancePayment: "",
 };
 
 export default function PaymentTab() {
@@ -100,6 +101,7 @@ export default function PaymentTab() {
         codEnabled: data.data.upi?.codEnabled || false,
         upiId: data.data.upi?.upiId || "",
         qrCodeImage: data.data.upi?.qrCodeImage || "",
+        upiAdvancePayment: data.data.upi?.upiAdvancePayment ?? "",
       });
     }
   }, [data]);
@@ -122,6 +124,14 @@ export default function PaymentTab() {
           ...prev,
           upiEnabled: value,
           codEnabled: value ? prev.codEnabled : false,
+        };
+      }
+
+      if (field === "codEnabled") {
+        return {
+          ...prev,
+          codEnabled: value,
+          upiAdvancePayment: value ? prev.upiAdvancePayment : "",
         };
       }
 
@@ -157,7 +167,14 @@ export default function PaymentTab() {
         qrCodeImage = await uploadSingleFile(qrFile);
       }
 
-      const payload = { ...config, qrCodeImage };
+      const payload = {
+        ...config, qrCodeImage, upiAdvancePayment:
+          config.upiAdvancePayment === "" ||
+            config.upiAdvancePayment === null ||
+            config.upiAdvancePayment === undefined
+            ? 0
+            : Number(config.upiAdvancePayment),
+      };
 
 
       const res = await updatePaymentConfig(payload);
@@ -276,6 +293,28 @@ export default function PaymentTab() {
             disabled={!config.upiEnabled}
           />
         </div>
+
+        {config.upiEnabled && config.codEnabled && (
+          <div className="mt-4">
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              COD Advance Payment Amount (₹)
+            </label>
+
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={config.upiAdvancePayment}
+              onChange={handleChange("upiAdvancePayment")}
+              placeholder="Enter advance amount (e.g. 200)"
+              className="w-full max-w-sm px-2 py-2.5 border border-gray-500/30 rounded outline-none text-gray-700 focus:border-primary transition"
+            />
+
+            <p className="mt-1 text-xs text-gray-500">
+              Customers must pay this amount before placing a Cash on Delivery order.
+            </p>
+          </div>
+        )}
 
         {config.upiEnabled && (
           <div className="mt-4 space-y-4">

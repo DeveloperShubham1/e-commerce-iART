@@ -374,15 +374,10 @@ const ProductDetails = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
 
-  console.log("Details is runnig===>")
-  console.log("products===>", products)
-  console.log("id===>", id)
-  console.log("searchParams===>", searchParams)
-
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
   const [thumbnail, setThumbnail] = useState(null);
-  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [relatedProducts, setRelatedProducts] = useState([]);  
 
   const product = products.find((item) => item._id === id);
   const variantIdFromUrl = searchParams.get("variant");
@@ -486,9 +481,9 @@ const ProductDetails = () => {
   const finalPrice =
     selectedSize?.offerPrice && selectedSize.offerPrice > 0
       ? (
-          selectedSize.price -
-          (selectedSize.price * selectedSize.offerPrice) / 100
-        ).toFixed(2)
+        selectedSize.price -
+        (selectedSize.price * selectedSize.offerPrice) / 100
+      ).toFixed(2)
       : selectedSize?.price;
 
   const otherVariants =
@@ -522,17 +517,16 @@ const ProductDetails = () => {
                 <button
                   key={idx}
                   onClick={() => setThumbnail(img)}
-                  className={`relative flex-shrink-0 cursor-pointer w-16 h-20 md:w-18 md:h-22 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
-                    isActive
+                  className={`relative flex-shrink-0 cursor-pointer w-16 h-20 md:w-18 md:h-22 rounded-xl overflow-hidden border-2 transition-all duration-300 ${isActive
                       ? "border-indigo-600 ring-2 ring-indigo-600/20 shadow-md scale-105"
                       : "border-slate-200/80 hover:border-slate-300 opacity-70 hover:opacity-100"
-                  }`}
+                    }`}
                 >
                   <img
                     src={img}
                     alt={`${product.name} thumbnail ${idx}`}
                     className="w-full h-full object-cover object-center"
-                    
+
                   />
                 </button>
               );
@@ -554,20 +548,20 @@ const ProductDetails = () => {
             />
           </div> */}
           <div className="relative w-fit h-fit mx-auto md:mx-0 rounded-3xl overflow-hidden group border border-slate-100 bg-slate-50">
-  {/* Save Badge */}
-  {selectedSize?.offerPrice > 0 && (
-    <div className="absolute top-4 left-4 z-10 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-      Save {selectedSize.offerPrice}%
-    </div>
-  )}
+            {/* Save Badge */}
+            {selectedSize?.offerPrice > 0 && (
+              <div className="absolute top-4 left-4 z-10 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                Save {selectedSize.offerPrice}%
+              </div>
+            )}
 
-  {/* Image automatically sets the width and height of the box */}
-  <img
-    src={thumbnail}
-    alt={product.name}
-    className="w-auto h-auto max-w-full max-h-[500px] object-contain rounded-3xl group-hover:scale-105 transition-transform duration-500 ease-out"
-  />
-</div>
+            {/* Image automatically sets the width and height of the box */}
+            <img
+              src={thumbnail}
+              alt={product.name}
+              className="w-auto h-auto max-w-full max-h-[500px] object-contain rounded-3xl group-hover:scale-105 transition-transform duration-500 ease-out"
+            />
+          </div>
 
         </div>
 
@@ -641,11 +635,10 @@ const ProductDetails = () => {
                     <button
                       key={v._id}
                       onClick={() => setSelectedVariant(v)}
-                      className={`relative w-9 h-9 rounded-full transition-all duration-300 flex items-center justify-center cursor-pointer ${
-                        isSelected
+                      className={`relative w-9 h-9 rounded-full transition-all duration-300 flex items-center justify-center cursor-pointer ${isSelected
                           ? "ring-2 ring-indigo-600 ring-offset-2 scale-110 shadow-md"
                           : "hover:scale-105 opacity-80 hover:opacity-100"
-                      }`}
+                        }`}
                       style={{ backgroundColor: v.colorCode || "#cbd5e1" }}
                       title={v.color}
                     />
@@ -673,15 +666,13 @@ const ProductDetails = () => {
                       key={s._id}
                       disabled={isOutOfStock}
                       onClick={() => setSelectedSize(s)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 border cursor-pointer ${
-                        isSelected
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 border cursor-pointer ${isSelected
                           ? "bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-900/10 scale-105"
                           : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                      } ${
-                        isOutOfStock
+                        } ${isOutOfStock
                           ? "opacity-40 line-through cursor-not-allowed bg-slate-100 border-slate-200"
                           : ""
-                      }`}
+                        }`}
                     >
                       {s.size}
                     </button>

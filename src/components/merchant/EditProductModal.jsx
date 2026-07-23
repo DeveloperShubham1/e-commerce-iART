@@ -13,40 +13,40 @@ const EditProductModal = ({
 }) => {
   const initialVariants = Array.isArray(product?.variants)
     ? product.variants.map((v) => ({
-        color: v.color || "",
-        colorCode: v.colorCode || "",
-        isTrending: v.isTrending || false,
-        trendingOrder: v.trendingOrder ?? "",
-        thumbnailIndex: v.thumbnailIndex ?? 0, // ⭐ ADD
-        existingImages: Array.isArray(v.images)
-          ? v.images.map((url, idx) => ({
-              url,
-              key: v.imageKeys?.[idx] || null,
-              toDelete: false,
-            }))
-          : [],
-        newFiles: [],
-        sizes: Array.isArray(v.sizes)
-          ? v.sizes.map((s) => ({
-              size: s.size || "",
-              stock: Number(s.stock) || 0,
-              price: s.price != null ? Number(s.price) : "",
-              offerPrice: s.offerPrice != null ? Number(s.offerPrice) : "",
-              variantSku: s.variantSku || "",
-            }))
-          : [],
-      }))
+      color: v.color || "",
+      colorCode: v.colorCode || "",
+      isTrending: v.isTrending || false,
+      trendingOrder: v.trendingOrder ?? "",
+      thumbnailIndex: v.thumbnailIndex ?? 0, // ⭐ ADD
+      existingImages: Array.isArray(v.images)
+        ? v.images.map((url, idx) => ({
+          url,
+          key: v.imageKeys?.[idx] || null,
+          toDelete: false,
+        }))
+        : [],
+      newFiles: [],
+      sizes: Array.isArray(v.sizes)
+        ? v.sizes.map((s) => ({
+          size: s.size || "",
+          stock: Number(s.stock) || 0,
+          price: s.price != null ? Number(s.price) : "",
+          offerPrice: s.offerPrice != null ? Number(s.offerPrice) : 0,
+          variantSku: s.variantSku || "",
+        }))
+        : [],
+    }))
     : [
-        {
-          color: "",
-          colorCode: "",
-          existingImages: [],
-          newFiles: [],
-          sizes: [
-            { size: "", stock: 0, price: "", offerPrice: "", variantSku: "" },
-          ],
-        },
-      ];
+      {
+        color: "",
+        colorCode: "",
+        existingImages: [],
+        newFiles: [],
+        sizes: [
+          { size: "", stock: 0, price: "", offerPrice: "", variantSku: "" },
+        ],
+      },
+    ];
 
   const [form, setForm] = useState({
     name: product?.name || "",
@@ -292,7 +292,7 @@ const EditProductModal = ({
           size: s.size.trim().toUpperCase(),
           stock: Number(s.stock) || 0,
           price: Number(s.price),
-          offerPrice: s.offerPrice ? Number(s.offerPrice) : undefined,
+          offerPrice: Number(s.offerPrice ?? 0),
           variantSku: s.variantSku?.trim() || undefined,
         }));
 
@@ -603,9 +603,8 @@ const EditProductModal = ({
                           onClick={() =>
                             updateVariant(vi, { thumbnailIndex: idx })
                           }
-                          className={`relative cursor-pointer border-2 rounded ${
-                            isThumb ? "border-indigo-600" : "border-gray-200"
-                          }`}
+                          className={`relative cursor-pointer border-2 rounded ${isThumb ? "border-indigo-600" : "border-gray-200"
+                            }`}
                         >
                           <img
                             src={
@@ -805,15 +804,13 @@ const EditProductModal = ({
                         <input
                           type="number"
                           placeholder="Discount in %"
-                          value={s.offerPrice || ""}
+                          value={s.offerPrice ?? 0}
                           onChange={(e) =>
                             updateSize(
                               vi,
                               si,
                               "offerPrice",
-                              e.target.value === ""
-                                ? ""
-                                : Number(e.target.value)
+                              e.target.value === "" ? 0 : Number(e.target.value)
                             )
                           }
                           className="w-full border rounded px-2 py-1"
