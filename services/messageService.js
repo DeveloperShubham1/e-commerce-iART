@@ -17,10 +17,21 @@ function buildDMText(dmProductUrl) {
   return `Hi! 👋\nThanks for your comment!\n\nHere's the product link you were interested in:\n👉 ${dmProductUrl}\n\nFeel free to reach out if you have any questions. 😊`;
 }
 
+function slugify(text = "") {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]/g, "");
+}
+
 function buildProductUrl(product, merchantConfig) {
+  const categoryName = product.product_id?.categoryId?.name;
+  const categorySlug = slugify(categoryName || "products");
+
   return (
-    product.product_url ||
-    `${merchantConfig.siteBaseUrl}/product/${product.product_id}`
+    `${merchantConfig.siteBaseUrl}/products/${categorySlug}/${product.product_id._id}` ||
+    product.product_url
   );
 }
 

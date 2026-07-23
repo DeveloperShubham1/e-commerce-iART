@@ -6,6 +6,13 @@ export async function findProductByMediaId(mediaId) {
   return InstagramProduct.findOne({
     instagram_media_id: mediaId,
     active: true,
+  }).populate({
+    path: "product_id",
+    select: "categoryId",
+    populate: {
+      path: "categoryId",
+      select: "name",
+    },
   });
 }
 
