@@ -11,6 +11,7 @@ import { getCategories } from "../controllers/categoryController.js";
 import {
   getOrdersByUserId,
   placeOrder,
+  placeUpiOrder
 } from "../controllers/orderController.js";
 import { productListByUser } from "../controllers/productController.js";
 import {
@@ -35,6 +36,7 @@ userRouter.put("/update-profile", authUser, completeGuestProfile);
 userRouter.get("/categories", getCategories);
 userRouter.get("/product/list", productListByUser);
 userRouter.post("/order/cod", authUser, placeOrder);
+userRouter.post("/order/upi", authUser, placeUpiOrder);
 userRouter.get("/orders", authUser, getOrdersByUserId);
 userRouter.get("/settings", getMerchantSettings);
 userRouter.get("/payment-config", getPaymentConfigforUser);

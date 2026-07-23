@@ -336,7 +336,21 @@ export const updatePaymentConfig = async (req, res) => {
       codEnabled,
       upiId,
       qrCodeImage,
+      upiAdvancePayment
     } = req.body;
+
+    // Validate UPI advance payment
+    if (upiAdvancePayment !== undefined && upiAdvancePayment !== null) {
+      const amount = Number(upiAdvancePayment);
+
+      if (Number.isNaN(amount) || amount < 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "UPI advance payment must be a valid non-negative number.",
+        });
+      }
+    }
 
     const updateData = {
       isRazorpayenabled: isRazorpayenabled === true,
@@ -344,6 +358,10 @@ export const updatePaymentConfig = async (req, res) => {
       "upi.enabled": upiEnabled === true,
       "upi.upiId": upiId || null,
       "upi.qrCodeImage": qrCodeImage || null,
+      "upi.upiAdvancePayment":
+        upiAdvancePayment !== undefined && upiAdvancePayment !== null
+          ? Number(upiAdvancePayment)
+          : null,
     };
 
     // Update only if a new key is entered

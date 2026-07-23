@@ -30,6 +30,11 @@ const MerchantSchema = new mongoose.Schema({
       default: null,
     },
 
+    upiAdvancePayment: {
+      type: Number,
+      default: null,
+    },
+
     qrCodeImage: {
       type: String,
       default: null,

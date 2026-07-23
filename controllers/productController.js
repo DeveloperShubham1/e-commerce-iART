@@ -22,7 +22,7 @@ export const addProduct = async (req, res) => {
     const missing = [];
     if (!name || !name.trim()) missing.push("name");
     if (!categoryId) missing.push("categoryId");
-    if (!subcategoryId) missing.push("subcategoryId");
+    // if (!subcategoryId) missing.push("subcategoryId");
     if (!variants) missing.push("variants");
 
     if (isSeprate !== undefined && typeof isSeprate !== "boolean") {
