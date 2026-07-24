@@ -97,29 +97,35 @@ export default function InstagramProductDetailModal({ mediaId, onClose }) {
                     <MessageCircle size={14} />
                     Comments ({detail.comments?.length || 0})
                   </div>
+
                   {detail.comments?.length === 0 ? (
                     <p className="text-sm text-gray-400">No comments yet.</p>
                   ) : (
-                    <ul className="flex flex-col gap-2.5">
-                      {detail.comments.map((c) => (
-                        <li key={c.comment_id} className="flex items-start gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
-                            <User size={13} />
-                          </div>
-                          <div className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
-                            <div className="flex items-center justify-between gap-2 mb-0.5">
-                              <span className="text-xs font-semibold text-purple-600">
-                                @{c.comment_username}
-                              </span>
-                              <span className="text-xs text-gray-400">
-                                {new Date(c.commented_at).toLocaleDateString("en-IN")}
-                              </span>
+                    <div className="max-h-64 overflow-y-auto pr-2">
+                      <ul className="flex flex-col gap-2.5">
+                        {detail.comments.map((c) => (
+                          <li key={c.comment_id} className="flex items-start gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                              <User size={13} />
                             </div>
-                            <p className="text-sm text-gray-700">{c.comment_text}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+
+                            <div className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+                              <div className="flex items-center justify-between gap-2 mb-0.5">
+                                <span className="text-xs font-semibold text-purple-600">
+                                  @{c.comment_username}
+                                </span>
+
+                                <span className="text-xs text-gray-400">
+                                  {new Date(c.commented_at).toLocaleDateString("en-IN")}
+                                </span>
+                              </div>
+
+                              <p className="text-sm text-gray-700">{c.comment_text}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
               </div>
@@ -196,20 +202,20 @@ export default function InstagramProductDetailModal({ mediaId, onClose }) {
                           <div className="divide-y divide-gray-50">
                             {v.sizes?.map((s) => (
                               <div
-                                key={s._id}
+                                key={s?._id}
                                 className="flex items-center justify-between px-3 py-2 text-sm"
                               >
                                 <span className="w-8 font-bold text-gray-800">
-                                  {s.size}
+                                  {s?.size}
                                 </span>
                                 <div className="flex items-center gap-1.5">
                                   <span className="font-semibold text-purple-700">
-                                    ₹{s.offerPrice}
+                                    ₹{s?.price}
                                   </span>
-                                  <s className="text-xs text-gray-400">₹{s.price}</s>
+                                  {/* <s className="text-xs text-gray-400">₹{s?.price}</s> */}
                                 </div>
                                 <span className="text-xs text-gray-400">
-                                  {s.stock} left
+                                  {s?.stock} left
                                 </span>
                               </div>
                             ))}

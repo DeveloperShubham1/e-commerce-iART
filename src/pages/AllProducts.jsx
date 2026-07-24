@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useAppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
 import ProductCard from "../components/ProductCard";
-
+import {
+  getProducts
+} from "../api";
 const LIMIT = 10;
 const DEBOUNCE_MS = 400;
 
@@ -20,74 +23,66 @@ const ProductCardSkeleton = () => (
 );
 
 const AllProducts = () => {
-  const { axios, searchQuery } = useAppContext();
+  const { searchQuery } = useAppContext();
   const merchantId = import.meta.env.VITE_MERCHANT_ID;
 
-  const [rawProducts, setRawProducts] = useState([]); // accumulated across pages
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-
   const sentinelRef = useRef(null);
-  const hasMore = page < totalPages;
 
-  /* ---------------- FETCH A PAGE ---------------- */
-  const fetchProducts = async (pageToFetch, { append }) => {
-    try {
-      const { data } = await axios.get(
-        `/api/user/product/list?merchantId=${merchantId}&search=${searchQuery || ""}&page=${pageToFetch}&limit=${LIMIT}`
-      );
+  /* ---------------- DEBOUNCE SEARCH INPUT ---------------- */
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery || "");
 
-      if (data.success) {
-        setRawProducts((prev) =>
-          append ? [...prev, ...data.products] : data.products
-        );
-        setPage(data.page);
-        setTotalPages(data.totalPages);
-      } else {
-        toast.error(data.message || "Failed to fetch products");
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
-    } finally {
-      setInitialLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  /* ---------------- RESET + FETCH PAGE 1 ON SEARCH CHANGE (debounced) ---------------- */
   useEffect(() => {
-    // Show skeletons immediately so the UI feels responsive, but delay the
-    // actual request until the user pauses typing for DEBOUNCE_MS.
-    setInitialLoading(true);
-    setRawProducts([]);
-    setPage(1);
-    setTotalPages(1);
-
     const timer = setTimeout(() => {
-      fetchProducts(1, { append: false });
+      setDebouncedSearch(searchQuery || "");
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, merchantId]);
+  }, [searchQuery]);
+
+  /* ---------------- INFINITE QUERY ---------------- */
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+    isError,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ["products", merchantId, debouncedSearch],
+    queryFn: ({ pageParam = 1 }) =>
+      getProducts({
+        merchantId,
+        search: debouncedSearch,
+        page: pageParam,
+        limit: LIMIT,
+      }),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.page < lastPage.totalPages) {
+        return lastPage.page + 1;
+      }
+      return undefined;
+    },
+    enabled: !!merchantId,
+  });
+
+  /* ---------------- SURFACE FETCH ERRORS ---------------- */
+  useEffect(() => {
+    if (isError) {
+      toast.error(
+        error?.response?.data?.message || error?.message || "Failed to fetch products"
+      );
+    }
+  }, [isError, error]);
 
   /* ---------------- INFINITE SCROLL TRIGGER ---------------- */
-  const loadNextPage = useCallback(() => {
-    if (loadingMore || initialLoading || !hasMore) return;
-    setLoadingMore(true);
-    fetchProducts(page + 1, { append: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingMore, initialLoading, hasMore, page]);
-
   useEffect(() => {
     if (!sentinelRef.current) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          loadNextPage();
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
         }
       },
       { rootMargin: "300px" } // start fetching a bit before it's actually on-screen
@@ -95,9 +90,14 @@ const AllProducts = () => {
 
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [loadNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   /* ---------------- SEPARATE-VARIANT EXPANSION (unchanged logic) ---------------- */
+  const rawProducts = useMemo(() => {
+    if (!data?.pages) return [];
+    return data.pages.flatMap((page) => page.products || []);
+  }, [data]);
+
   const variantList = useMemo(() => {
     if (!Array.isArray(rawProducts)) return [];
 
@@ -150,7 +150,7 @@ const AllProducts = () => {
 
       {/* ===== Products Grid ===== */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6 mt-6">
-        {initialLoading
+        {isLoading
           ? Array.from({ length: LIMIT }).map((_, i) => (
             <ProductCardSkeleton key={`initial-skeleton-${i}`} />
           ))
@@ -162,21 +162,21 @@ const AllProducts = () => {
           ))}
 
         {/* Extra skeletons appended while fetching the next page */}
-        {loadingMore &&
+        {isFetchingNextPage &&
           Array.from({ length: 5 }).map((_, i) => (
             <ProductCardSkeleton key={`more-skeleton-${i}`} />
           ))}
       </div>
 
       {/* Empty state */}
-      {!initialLoading && !loadingMore && variantList.length === 0 && (
+      {!isLoading && !isFetchingNextPage && variantList.length === 0 && (
         <div className="text-center py-20 text-gray-500">
           No products found.
         </div>
       )}
 
       {/* Sentinel — IntersectionObserver watches this to trigger the next page */}
-      {hasMore && <div ref={sentinelRef} className="h-1" />}
+      {hasNextPage && <div ref={sentinelRef} className="h-1" />}
     </div>
   );
 };

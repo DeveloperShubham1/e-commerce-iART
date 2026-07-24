@@ -86,7 +86,7 @@ const ProductList = () => {
         }
       );
 
-      if (data.success) {
+      if (data.success) { 
         setProducts(data.products || []);
         setTotalPages(data.totalPages || 1);
       } else {

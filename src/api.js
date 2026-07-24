@@ -151,3 +151,39 @@ export const getPaymentConfigForUser = async (merchantId) => {
     const { data } = await axios.get(`/api/user/payment-config?merchantId=${merchantId}`);
     return data;
 };
+
+export const getProductById = async (id) => {
+    const { data } = await axios.get(`/api/products?id=${id}`);
+    return data;
+};
+
+export const getProductsByCategory = async (categoryId, productId) => {
+    const { data } = await axios.get(
+        `/api/categories/by-category?categoryId=${categoryId}&productId=${productId}`
+    );
+    return data;
+};
+
+export const getProducts = async ({
+    merchantId,
+    search = "",
+    page = 1,
+    limit = 10,
+    categoryId,
+    subcategoryId,
+    size,
+}) => {
+    const { data } = await axios.get("/api/user/product/list", {
+        params: {
+            merchantId,
+            search,
+            page,
+            limit,
+            categoryId,
+            subcategoryId,
+            size,
+        },
+    });
+
+    return data;
+};

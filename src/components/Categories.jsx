@@ -56,7 +56,7 @@ const Categories = () => {
               className="group cursor-pointer flex flex-col justify-center items-center transition"
               // style={{ backgroundColor: "#0e63b8" }}
               onClick={() => {
-                navigate(`/products/${category.name.toLowerCase()}`);
+                navigate(`/products/${category._id}`);
                 scrollTo(0, 0);
               }}
             >
