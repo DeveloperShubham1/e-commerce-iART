@@ -36,6 +36,11 @@ import ProfilePage from "./pages/UserProfile";
 import ExistProfile from "./pages/merchant/ExistProfile";
 import ScrollToTop from "./components/utils/ScrollToTop";
 import Contact from "./pages/Contact";
+import { Faq } from "./pages/Faq";
+import { ExchangePolicy } from "./pages/Policies/ExchangePolicy";
+import { ShippingPolicy } from "./pages/Policies/ShippingPolicy";
+import { TermsPolicy } from "./pages/Policies/TermsPolicy";
+import { PrivacyPolicy } from "./pages/Policies/PrivacyPolicy";
 
 
 const BUILD_TYPE = import.meta.env.VITE_BUILD_TYPE; // user | merchant
@@ -146,7 +151,7 @@ const App = () => {
               <>
                 <Route path="/" element={<Home />} />
                 <Route path="/products" element={<AllProducts />} />
-                <Route path="/products/:category" element={<ProductCategory />} />
+                <Route path="/products/:categoryId" element={<ProductCategory />} />
 
                 <Route
                   path="/products/:category/:id"
@@ -160,6 +165,11 @@ const App = () => {
                 <Route path="/buy-now" element={<BuyNow />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/faq" element={<Faq />} />
+                <Route path="/exchange-policy" element={<ExchangePolicy />} />
+                <Route path="/shipping-policy" element={<ShippingPolicy />} />
+                <Route path="/terms-policy" element={<TermsPolicy />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
               </>
             )}

@@ -1,21 +1,28 @@
 import React from "react";
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin, Instagram, Facebook, Youtube } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
+import { footerLinks } from "../assets/assets";
+
+const socialIcons = {
+    Instagram,
+    Facebook,
+    YouTube: Youtube,
+};
 
 const Contact = () => {
     const { settings } = useAppContext();
 
-    const rawPhone = settings?.contact?.phone || "9888398685";
+    const rawPhone = settings?.contact?.phone || "9876543210";
 
     // Display
     const displayPhone = `+91 ${rawPhone}`;
 
     // Link
     const phoneHref = `tel:+91${rawPhone}`;
-    const email = settings?.contact?.email || "vanyathakur13@gmail.com";
+    const email = settings?.contact?.email || "test@gmail.com";
     const address =
         settings?.contact?.address ||
-        "Fashion Flair Arya college road kharar near chawla dairy, Kharar, India, 140301";
+        "test, Kharar, India, 140301";
 
     const contactItems = [
         {
@@ -37,6 +44,8 @@ const Contact = () => {
             href: `https://maps.google.com/?q=${encodeURIComponent(address)}`,
         },
     ];
+
+    const socialSection = footerLinks.find((s) => s.title === "Follow Us");
 
     return (
         <section className="bg-[var(--color-primary-bg)] min-h-screen">
@@ -75,8 +84,37 @@ const Contact = () => {
                     ))}
                 </div>
 
+                {/* Follow Us */}
+                {socialSection && (
+                    <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+                        <h3 className="text-xl font-semibold text-gray-800">
+                            {socialSection.title}
+                        </h3>
+                        <p className="mt-2 text-gray-500">
+                            Stay updated with our latest drops and offers.
+                        </p>
+                        <div className="mt-6 flex items-center justify-center gap-4">
+                            {socialSection.links.map((link, i) => {
+                                const Icon = socialIcons[link.text];
+                                return (
+                                    <a
+                                        key={i}
+                                        href={link.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label={link.text}
+                                        className="group flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition"
+                                    >
+                                        {Icon && <Icon size={24} />}
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 {/* Extra Section */}
-                <div className="mt-16 bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+                <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
                     <h2 className="text-2xl font-semibold text-gray-800">
                         We're Happy to Help
                     </h2>

@@ -104,12 +104,13 @@ export default function AddProductVariants() {
     setVariants(newVars);
   };
 
-  const MAX_IMAGES = 5;
+  const MAX_IMAGES = 10;
 
   const handleFilesChange = (vIdx, newFileList) => {
     const currentFiles = variants[vIdx].files || [];
     const incomingFiles = Array.from(newFileList || []);
-
+    console.log("Current:", currentFiles.length);
+    console.log("Incoming:", incomingFiles.length);
     if (!incomingFiles.length) return;
 
     // Prevent duplicate files
@@ -121,6 +122,7 @@ export default function AddProductVariants() {
     const newlyAdded = incomingFiles.filter(
       (f) => !currentFiles.some((cf) => isSameFile(cf, f)),
     );
+    console.log("New:", newlyAdded.length);
 
     let finalFiles = [...currentFiles, ...newlyAdded];
 
@@ -403,7 +405,7 @@ export default function AddProductVariants() {
                   onChange={(e) => setSubcategoryId(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   disabled={!subcategories.length}
-                  // required
+                // required
                 >
                   <option value="">
                     {subcategories.length
@@ -562,7 +564,7 @@ export default function AddProductVariants() {
                       <div className="mb-6">
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
                           Variant Images <span className="text-red-500">*</span>{" "}
-                          (up to 5)
+                          (up to 10)
                         </label>
                         <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-400 transition">
                           <input
@@ -588,18 +590,17 @@ export default function AddProductVariants() {
                         </div>
 
                         {variant.files.length > 0 && (
-                          <div className="grid grid-cols-8 gap-3 mt-4">
+                          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-4">
                             {variant.files.map((file, fIdx) => {
                               const isThumb = variant.thumbnailIndex === fIdx;
 
                               return (
                                 <div
                                   key={fIdx}
-                                  className={`relative group cursor-pointer border-2 rounded-lg ${
-                                    isThumb
-                                      ? "border-blue-600"
-                                      : "border-gray-200"
-                                  }`}
+                                  className={`relative group cursor-pointer border-2 rounded-lg ${isThumb
+                                    ? "border-blue-600"
+                                    : "border-gray-200"
+                                    }`}
                                   onClick={() =>
                                     updateVariant(vIdx, {
                                       thumbnailIndex: fIdx,

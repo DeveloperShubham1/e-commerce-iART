@@ -156,19 +156,18 @@ export const footerLinks = [
       { text: "All Products", url: "/products", external: false },
       { text: "Cart", url: "/cart", external: false },
       { text: "Contact Us", url: "/contact", external: false },
-      // { text: "FAQs", url: "/faq", external: false },
+      { text: "FAQs", url: "/faq", external: false },
     ],
   },
-  // {
-  //   title: "Need help?",
-  //   links: [
-  //     { text: "Delivery Information", url: "#" },
-  //     { text: "Return & Refund Policy", url: "#" },
-  //     { text: "Payment Methods", url: "#" },
-  //     { text: "Track your Order", url: "#" },
-  //     { text: "Contact Us", url: "#" },
-  //   ],
-  // },
+  {
+    title: "Policies",
+    links: [
+      { text: "No Exchange & Return", url: "/exchange-policy", external: false },
+      { text: "Shipping & Delivery", url: "/shipping-policy", external: false },
+      { text: "Terms & Conditions", url: "/terms-policy", external: false },
+      { text: "Privacy Policy", url: "/privacy-policy", external: false },
+    ],
+  },
   {
     title: "Follow Us",
     links: [
