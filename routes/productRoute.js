@@ -11,10 +11,10 @@ import {
 
 const productRouter = express.Router();
 
+productRouter.get("/", productById);
 productRouter.post("/add", authMerchant, addProduct);
 productRouter.put("/update/:id", authMerchant, updateProduct);
 productRouter.delete("/delete/:id", authMerchant, deleteProduct);
 productRouter.get("/list", authMerchant, productList);
-productRouter.get("/:id", authMerchant, productById);
 
 export default productRouter;

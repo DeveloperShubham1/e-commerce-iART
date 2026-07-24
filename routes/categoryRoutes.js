@@ -6,9 +6,12 @@ import {
   getCategoryById,
   updateCategory,
   deleteCategory,
+  productsByCategoryId,
 } from "../controllers/categoryController.js";
 
 const router = express.Router();
+
+router.get("/by-category", productsByCategoryId);
 
 router.get("/", authMerchant, getCategories);
 

@@ -406,7 +406,7 @@ export const updateProduct = async (req, res) => {
     const updated = await Product.findByIdAndUpdate(
       productId,
       { $set: updateFields },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     return res.status(200).json({
@@ -562,12 +562,42 @@ export const productList = async (req, res) => {
 
 export const productById = async (req, res) => {
   try {
-    const { id } = req.body;
-    const product = await Product.findById(id);
-    res.json({ success: true, product });
+    const { id } = req.query;
+
+    const product = await Product.findOne({
+      _id: id,
+    })
+      .populate("categoryId", "name _id")
+      .populate("subcategoryId", "name _id");
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // Sort variants (Trending first)
+    if (product.variants?.length) {
+      product.variants.sort((a, b) => {
+        if (a.isTrending === b.isTrending) {
+          return (a.trendingOrder ?? 999) - (b.trendingOrder ?? 999);
+        }
+        return b.isTrending - a.isTrending;
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      product,
+    });
   } catch (error) {
-    console.log(error.message);
-    res.json({ success: false, message: error.message });
+    console.error("Error fetching product:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching product",
+      error: error.message,
+    });
   }
 };
 

@@ -1,7 +1,8 @@
 import Category from "../models/Category.js";
 import Subcategory from "../models/Subcategory.js";
+import Product from "../models/Product.js";
+import mongoose from "mongoose";
 import { deleteFileFromS3 } from "./s3Controller.js";
-
 
 export const addCategory = async (req, res) => {
   try {
@@ -104,7 +105,7 @@ export const getCategoryById = async (req, res) => {
     const { id } = req.params;
     const category = await Category.findById(id).populate(
       "merchantId",
-      "MerchantName email"
+      "MerchantName email",
     );
 
     if (!category)
@@ -164,7 +165,7 @@ export const updateCategory = async (req, res) => {
           };
           await deleteFileFromS3(
             { body: { key: category.image.key } },
-            fakeRes
+            fakeRes,
           );
           console.log(`Replaced old image in S3: ${category.image.key}`);
         } catch (err) {
@@ -227,7 +228,6 @@ export const deleteCategory = async (req, res) => {
 };
 
 // api for User Data
-
 export const getCategoriesForUser = async (req, res) => {
   try {
     let merchantId;
@@ -270,6 +270,191 @@ export const getCategoriesForUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Server error while fetching categories",
+    });
+  }
+};
+
+export const productsByCategoryId = async (req, res) => {
+  try {
+    const { categoryId, productId } = req.query;
+
+    if (!categoryId || !productId) {
+      return res.status(400).json({
+        success: false,
+        message: "categoryId and productId are required",
+      });
+    }
+
+    const excludeId = new mongoose.Types.ObjectId(productId);
+    const categoryObjectId = new mongoose.Types.ObjectId(categoryId);
+
+    let products = [];
+    let type = "";
+
+    /* =====================================================
+       CASE 1 : SIMILAR PRODUCTS
+       Same category
+       Trending first
+    ====================================================== */
+    products = await Product.aggregate([
+      {
+        $match: {
+          _id: { $ne: excludeId },
+          categoryId: categoryObjectId,
+          isActive: true,
+        },
+      },
+
+      {
+        $addFields: {
+          hasTrendingVariant: {
+            $anyElementTrue: {
+              $map: {
+                input: "$variants",
+                as: "v",
+                in: "$$v.isTrending",
+              },
+            },
+          },
+          minTrendingOrder: {
+            $min: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: "$variants",
+                    as: "v",
+                    cond: { $eq: ["$$v.isTrending", true] },
+                  },
+                },
+                as: "tv",
+                in: "$$tv.trendingOrder",
+              },
+            },
+          },
+        },
+      },
+
+      {
+        $sort: {
+          hasTrendingVariant: -1,
+          minTrendingOrder: 1,
+          createdAt: -1,
+        },
+      },
+      {
+        $limit: 5,
+      },
+    ]);
+
+    await Product.populate(products, [
+      { path: "categoryId", select: "name _id" },
+      { path: "subcategoryId", select: "name _id" },
+    ]);
+
+    if (products.length) {
+      type = "similar";
+    }
+
+    /* =====================================================
+       CASE 2 : TOP TRENDING
+       ALL CATEGORIES
+       Exclude current product
+    ====================================================== */
+
+    if (!products.length) {
+      products = await Product.aggregate([
+        {
+          $match: {
+            _id: { $ne: excludeId },
+            isActive: true,
+            "variants.isTrending": true,
+          },
+        },
+
+        {
+          $addFields: {
+            minTrendingOrder: {
+              $min: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: "$variants",
+                      as: "v",
+                      cond: { $eq: ["$$v.isTrending", true] },
+                    },
+                  },
+                  as: "tv",
+                  in: "$$tv.trendingOrder",
+                },
+              },
+            },
+          },
+        },
+
+        {
+          $sort: {
+            minTrendingOrder: 1,
+            createdAt: -1,
+          },
+        },
+      ]);
+
+      await Product.populate(products, [
+        { path: "categoryId", select: "name _id" },
+        { path: "subcategoryId", select: "name _id" },
+      ]);
+
+      if (products.length) {
+        type = "top-trending";
+      }
+    }
+
+    /* =====================================================
+       CASE 3 : ALL PRODUCTS
+       Exclude current product
+    ====================================================== */
+
+    if (!products.length) {
+      products = await Product.find({
+        _id: { $ne: excludeId },
+        isActive: true,
+      })
+        .populate("categoryId", "name _id")
+        .populate("subcategoryId", "name _id")
+        .sort({ createdAt: -1 });
+
+      type = "products";
+    }
+
+    /* =====================================================
+       SORT VARIANTS
+    ====================================================== */
+
+    products.forEach((product) => {
+      if (product.variants?.length) {
+        product.variants.sort((a, b) => {
+          if (a.isTrending === b.isTrending) {
+            return (a.trendingOrder ?? 999) - (b.trendingOrder ?? 999);
+          }
+
+          return b.isTrending - a.isTrending;
+        });
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      type,
+      total: products.length,
+      products,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching products",
+      error: error.message,
     });
   }
 };
