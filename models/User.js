@@ -39,6 +39,7 @@ const userSchema = new mongoose.Schema(
 
         offerPrice: {
           type: Number, // optional
+          default: 1,
         },
       },
     ],

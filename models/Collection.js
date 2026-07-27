@@ -1,22 +1,27 @@
 import mongoose from "mongoose";
 
 const CollectionSchema = new mongoose.Schema(
-    {
-        merchantId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Merchants",
-            required: true,
-        },
-        name: { type: String, required: true },
-        description: { type: String },
-        image: {
-            key: { type: String },
-            url: { type: String },
-        },
+  {
+    merchantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Merchants",
+      required: true,
+      index: true,
     },
-    {
-        timestamps: true, // adds createdAt and updatedAt
-    }
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: String,
+    image: {
+      key: String,
+      url: String,
+    },
+  },
+  {
+    timestamps: true,
+  },
 );
 
 export default mongoose.model("Collection", CollectionSchema);
