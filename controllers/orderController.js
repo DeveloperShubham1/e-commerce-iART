@@ -155,8 +155,20 @@ export const placeOrder = async (req, res) => {
     });
 
     // ✅ CLEAR CART AFTER ORDER SUCCESS
+    // await User.findByIdAndUpdate(userId, {
+    //   $set: { cartItems: [] },
+    // });
+
     await User.findByIdAndUpdate(userId, {
-      $set: { cartItems: [] },
+      $pull: {
+        cartItems: {
+          $or: itemDetails.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            size: item.size,
+          })),
+        },
+      },
     });
 
     const merchantConfig = await loadMerchantConfig(order.merchantId);
@@ -325,8 +337,20 @@ export const placeUpiOrder = async (req, res) => {
     });
 
     // ✅ CLEAR CART AFTER ORDER SUCCESS
+    // await User.findByIdAndUpdate(userId, {
+    //   $set: { cartItems: [] },
+    // });
+
     await User.findByIdAndUpdate(userId, {
-      $set: { cartItems: [] },
+      $pull: {
+        cartItems: {
+          $or: itemDetails.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            size: item.size,
+          })),
+        },
+      },
     });
 
     const merchantConfig = await loadMerchantConfig(order.merchantId);

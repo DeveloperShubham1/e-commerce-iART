@@ -1,10 +1,12 @@
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import Order from "../models/Order.js";
+import mongoose from "mongoose";
 import User from "../models/User.js";
+import Order from "../models/Order.js";
 import { consumeIgAuthToken } from "../services/authTokenService.js";
 
+// ============================= INSTAGRAM EXCHANGE =============================
 export async function igExchange(req, res) {
   const { token } = req.query;
   if (!token) {
@@ -22,12 +24,12 @@ export async function igExchange(req, res) {
 
   if (!user) {
     const randomPassword = crypto.randomBytes(24).toString("hex");
-
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
     user = await User.create({
       name: payload.username || "Instagram User",
       email: `ig_${payload.igsid}@guest.local`,
-      password: hashedPassword, // never used to log in directly; hash it if your schema expects hashed passwords elsewhere
+      password: hashedPassword, // never used to log in directly
       instagramId: payload.igsid,
       isGuest: true,
       merchantData: [
@@ -56,124 +58,16 @@ export async function igExchange(req, res) {
   return res.json({ success: true, isGuest: user.isGuest });
 }
 
-// export async function completeGuestProfile(req, res) {
-//   try {
-//     const userId = req.user?._id;
-
-//     if (!userId) {
-//       return res.status(401).json({
-//         success: false,
-//         message: "Unauthorized",
-//       });
-//     }
-
-//     const { name, email, password, currentPassword } = req.body;
-
-//     const user = await User.findById(userId);
-
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "User not found",
-//       });
-//     }
-
-//     // Email can only be changed by guest users
-//     if (!user.isGuest && email && email !== user.email) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Email cannot be changed.",
-//       });
-//     }
-
-//     // Guest user flow
-//     if (user.isGuest) {
-//       if (!email || !password) {
-//         return res.status(400).json({
-//           success: false,
-//           message: "Email and password are required.",
-//         });
-//       }
-
-//       // Check email uniqueness
-//       const existingUser = await User.findOne({
-//         email,
-//         _id: { $ne: userId },
-//       });
-
-//       if (existingUser) {
-//         return res.status(409).json({
-//           success: false,
-//           message: "Email already in use.",
-//         });
-//       }
-
-//       user.email = email;
-//       user.password = await bcrypt.hash(password, 10);
-//       user.isGuest = false;
-//     } else {
-//       // Existing user must provide current password to change password
-//       if (password) {
-//         if (!currentPassword) {
-//           return res.status(400).json({
-//             success: false,
-//             message: "Current password is required.",
-//           });
-//         }
-
-//         const isMatch = await bcrypt.compare(currentPassword, user.password);
-
-//         if (!isMatch) {
-//           return res.status(400).json({
-//             success: false,
-//             message: "Current password is incorrect.",
-//           });
-//         }
-
-//         user.password = await bcrypt.hash(password, 10);
-//       }
-//     }
-
-//     // Name can always be updated
-//     if (name) {
-//       user.name = name;
-//     }
-
-//     await user.save();
-
-//     return res.status(200).json({
-//       success: true,
-//       message: user.isGuest
-//         ? "Profile updated successfully."
-//         : "Profile completed successfully.",
-//       data: {
-//         _id: user._id,
-//         name: user.name,
-//         email: user.email,
-//         isGuest: user.isGuest,
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Complete guest profile error:", error);
-
-//     return res.status(500).json({
-//       success: false,
-//       message: error.message || "Internal server error.",
-//     });
-//   }
-// }
-
-
-
-
-// ... igExchange unchanged ...
-
+// ============================= COMPLETE GUEST PROFILE =============================
 export async function completeGuestProfile(req, res) {
   try {
     const userId = req.user?._id;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
     }
 
     const { name, email, password, currentPassword } = req.body;
@@ -181,17 +75,21 @@ export async function completeGuestProfile(req, res) {
     const user = await User.findById(userId);
 
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
 
+    // Email can only be changed by guest users
     if (!user.isGuest && email && email !== user.email) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email cannot be changed." });
+      return res.status(400).json({
+        success: false,
+        message: "Email cannot be changed.",
+      });
     }
 
+    // ===================== GUEST FLOW =====================
     if (user.isGuest) {
       if (!email || !password) {
         return res.status(400).json({
@@ -202,13 +100,22 @@ export async function completeGuestProfile(req, res) {
 
       const guestMerchantId = user.merchantData?.[0]?.merchantId;
 
+      if (!guestMerchantId) {
+        return res.status(400).json({
+          success: false,
+          message: "Guest account is missing merchant information.",
+        });
+      }
+
+      // Check uniqueness scoped to THIS merchant only — matches the
+      // email + merchantData.merchantId compound unique index
       const existingUser = await User.findOne({
         email,
         merchantData: { $elemMatch: { merchantId: guestMerchantId } },
         _id: { $ne: userId },
       });
 
-      // ===== MERGE PATH =====
+      // ---------- MERGE PATH: account already exists for this email + merchant ----------
       if (existingUser) {
         const isMatch = await bcrypt.compare(password, existingUser.password);
 
@@ -221,7 +128,28 @@ export async function completeGuestProfile(req, res) {
           });
         }
 
-        // --- Merge cart items ---
+        // Carry the Instagram link over to the existing account, if the
+        // guest has one and the existing account isn't already linked to
+        // a different Instagram account.
+        if (user.instagramId) {
+          if (
+            existingUser.instagramId &&
+            existingUser.instagramId !== user.instagramId
+          ) {
+            return res.status(409).json({
+              success: false,
+              message:
+                "This existing account is already linked to a different Instagram account. Please contact support to merge manually.",
+              code: "INSTAGRAM_CONFLICT",
+            });
+          }
+
+          existingUser.instagramId = user.instagramId;
+        }
+
+        // Merge guest cart items into the existing account.
+        // If the same variant+size already exists there, bump quantity
+        // instead of creating a duplicate line item.
         const guestCartItems = user.cartItems || [];
 
         for (const guestItem of guestCartItems) {
@@ -246,17 +174,44 @@ export async function completeGuestProfile(req, res) {
           existingUser.name = name;
         }
 
-        await existingUser.save();
+        // Clear the guest's instagramId BEFORE deleting the doc, so the
+        // unique+sparse index never briefly holds two docs with the same
+        // instagramId inside the transaction.
+        user.instagramId = undefined;
 
-        // --- Reassign guest's orders to the existing account ---
-        // Scoped by merchantId too, in case userId ever collides across merchants
-        await Order.updateMany(
-          { userId: user._id, merchantId: guestMerchantId },
-          { $set: { userId: existingUser._id } },
-        );
+        const session = await mongoose.startSession();
 
-        // --- Delete the now-empty guest document ---
-        await User.deleteOne({ _id: user._id });
+        try {
+          await session.withTransaction(async () => {
+            await user.save({ session }); // persists instagramId = undefined
+            await existingUser.save({ session }); // persists merged cart + instagramId
+
+            await Order.updateMany(
+              { userId: user._id, merchantId: guestMerchantId },
+              { $set: { userId: existingUser._id } },
+              { session },
+            );
+
+            await User.deleteOne({ _id: user._id }, { session });
+          });
+        } catch (txError) {
+          console.error("Guest merge transaction failed:", txError);
+
+          if (txError.code === 11000) {
+            return res.status(409).json({
+              success: false,
+              message: "This Instagram account is already linked elsewhere.",
+              code: "INSTAGRAM_CONFLICT",
+            });
+          }
+
+          return res.status(500).json({
+            success: false,
+            message: "Failed to merge account. Please try again.",
+          });
+        } finally {
+          await session.endSession();
+        }
 
         const token = jwt.sign(
           { userId: existingUser._id, merchantId: guestMerchantId },
@@ -286,12 +241,13 @@ export async function completeGuestProfile(req, res) {
             name: existingUser.name,
             email: existingUser.email,
             isGuest: false,
+            instagramId: existingUser.instagramId,
           },
           cartItems,
         });
       }
 
-      // ===== NORMAL PATH: no collision =====
+      // ---------- NORMAL PATH: no collision, convert guest to real account ----------
       try {
         user.email = email;
         user.password = await bcrypt.hash(password, 10);
@@ -309,6 +265,7 @@ export async function completeGuestProfile(req, res) {
         throw err;
       }
     } else {
+      // ===================== EXISTING (NON-GUEST) USER FLOW =====================
       if (password) {
         if (!currentPassword) {
           return res.status(400).json({
@@ -330,6 +287,7 @@ export async function completeGuestProfile(req, res) {
       }
     }
 
+    // Name can always be updated
     if (name) {
       user.name = name;
     }
@@ -350,6 +308,7 @@ export async function completeGuestProfile(req, res) {
     });
   } catch (error) {
     console.error("Complete guest profile error:", error);
+
     return res.status(500).json({
       success: false,
       message: error.message || "Internal server error.",

@@ -210,20 +210,15 @@ export const getCart = async (req, res) => {
     const userId = req.user._id;
     const merchantId = req.user.merchantId;
 
-    const user = await User.findOne(
-      { _id: userId },
-      {
-        cartItems: {
-          $elemMatch: {
-            merchantId,
-          },
-        },
-      },
+    const user = await User.findById(userId).select("cartItems");
+
+    const cartItems = (user?.cartItems || []).filter(
+      (item) => item.merchantId.toString() === merchantId.toString()
     );
 
     return res.status(200).json({
       success: true,
-      cartItems: user?.cartItems || [],
+      cartItems,
     });
   } catch (error) {
     return res.status(500).json({
