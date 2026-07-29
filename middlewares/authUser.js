@@ -15,6 +15,7 @@ const authUser = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(userToken, process.env.JWT_SECRET);
 
+
     if (decoded.guest) {
       req.guest = { igsid: decoded.igsid, username: decoded.username };
       return next();
@@ -31,7 +32,8 @@ const authUser = async (req, res, next) => {
     }
 
     // Attach user object to req
-    req.user = user;
+    req.user = user.toObject();
+    req.user.merchantId = decoded.merchantId;
 
     next();
   } catch (error) {

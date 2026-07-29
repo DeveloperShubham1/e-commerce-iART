@@ -3,16 +3,33 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true },
     password: { type: String, required: true },
     instagramId: { type: String, unique: true, sparse: true },
     isGuest: { type: Boolean, default: false },
+    merchantData: {
+      type: [
+        {
+          merchantId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Merchants",
+            required: true,
+          },
+        },
+      ],
+      default: [],
+    },
     cartItems: [
       {
         productId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Product",
           required: true,
+        },
+
+        merchantId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Merchants",
         },
 
         variantId: {
@@ -46,6 +63,8 @@ const userSchema = new mongoose.Schema(
   },
   { minimize: false },
 );
+
+userSchema.index({ email: 1, "merchantData.merchantId": 1 }, { unique: true });
 
 const User = mongoose.models.user || mongoose.model("user", userSchema);
 

@@ -5,6 +5,8 @@ import Product from "../models/Product.js";
 export const addToCart = async (req, res) => {
   try {
     const userId = req.user._id;
+    const merchantId = req?.user?.merchantId;
+
     const { productId, variantId, size, quantity = 1 } = req.body;
 
     if (!productId || !variantId || !size) {
@@ -43,7 +45,7 @@ export const addToCart = async (req, res) => {
       (i) =>
         i.productId.equals(productId) &&
         i.variantId.equals(variantId) &&
-        i.size === size
+        i.size === size,
     );
 
     if (existingItem) {
@@ -56,6 +58,7 @@ export const addToCart = async (req, res) => {
         quantity,
         price: sizeData.price,
         offerPrice: sizeData.offerPrice,
+        merchantId,
       });
     }
 
@@ -123,7 +126,7 @@ export const updateCartItem = async (req, res) => {
       (i) =>
         i.productId.equals(productId) &&
         i.variantId.equals(variantId) &&
-        i.size === size
+        i.size === size,
     );
 
     if (!item) {
@@ -188,7 +191,7 @@ export const removeCartItem = async (req, res) => {
           i.productId.equals(productId) &&
           i.variantId.equals(variantId) &&
           i.size === size
-        )
+        ),
     );
     await user.save();
     res.json({
@@ -205,22 +208,25 @@ export const removeCartItem = async (req, res) => {
 export const getCart = async (req, res) => {
   try {
     const userId = req.user._id;
+    const merchantId = req.user.merchantId;
 
-    const user = await User.findById(userId);
+    const user = await User.findOne(
+      { _id: userId },
+      {
+        cartItems: {
+          $elemMatch: {
+            merchantId,
+          },
+        },
+      },
+    );
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    res.json({
+    return res.status(200).json({
       success: true,
-      cartItems: user.cartItems,
+      cartItems: user?.cartItems || [],
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch cart",
       error: error.message,
