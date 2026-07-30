@@ -6,6 +6,13 @@ import {
     getProfile,
     updateProfile,
     getDashboardData,
+    getSalesSummary,
+    getOrdersList,
+    getCustomersList,
+    getMerchantDetail,
+    getMerchantsRevenue,
+    getCustomerDetail,
+    toggleMerchantSubscription,
     createMerchant,
     getMerchantList,
     updateMerchant
@@ -22,8 +29,16 @@ superAdminRouter.post("/merchants", authSuperAdmin, createMerchant);
 superAdminRouter.get("/profile", authSuperAdmin, getProfile);
 superAdminRouter.get("/dashboard", authSuperAdmin, getDashboardData);
 superAdminRouter.get("/merchants", authSuperAdmin, getMerchantList);
+superAdminRouter.get("/sales/summary", authSuperAdmin, getSalesSummary);
+superAdminRouter.get("/orders", authSuperAdmin, getOrdersList);
+superAdminRouter.get("/customers", authSuperAdmin, getCustomersList);
+superAdminRouter.get("/merchants/:id", authSuperAdmin, getMerchantDetail);
+superAdminRouter.get("/merchants/revenue/top", authSuperAdmin, getMerchantsRevenue);
+superAdminRouter.get("/customers/:id", authSuperAdmin, getCustomerDetail);
 
 superAdminRouter.put("/profile", authSuperAdmin, updateProfile);
-superAdminRouter.put("/merchants", authSuperAdmin, updateMerchant);
+superAdminRouter.put("/merchants/:id", authSuperAdmin, updateMerchant);
+superAdminRouter.patch("/merchants/:id/toggle-subscription", authSuperAdmin, toggleMerchantSubscription);
 
 export default superAdminRouter;
+

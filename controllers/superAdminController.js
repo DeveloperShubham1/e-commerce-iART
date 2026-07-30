@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import SuperAdmin from "../models/SuperAdmin.js";
 import Merchant from "../models/Merchants.js";
+import Order from "../models/Order.js";
+import User from "../models/User.js";
 
 // ============================= REGISTER =============================
 export const register = async (req, res) => {
@@ -289,57 +291,6 @@ export const updateProfile = async (req, res) => {
     }
 };
 
-// ============================= GET DASHBOARD DATA =============================
-export const getDashboardData = async (req, res) => {
-    try {
-        // Dashboard counts
-        const [
-            totalMerchants,
-            subscribedMerchants,
-            recentMerchants,
-        ] = await Promise.all([
-            Merchant.countDocuments(),
-            Merchant.countDocuments({ isSubscribed: true }),
-            Merchant.find({})
-                .select({
-                    MerchantName: 1,
-                    OwnerName: 1,
-                    email: 1,
-                    phone: 1,
-                    logo: 1,
-                    isSubscribed: 1,
-                    createdAt: 1,
-                })
-                .sort({ createdAt: -1 })
-                .limit(5)
-                .lean(),
-        ]);
-
-        // Placeholder values until Customer & Order collections exist
-        const totalCustomers = 0;
-        const totalOrders = 0;
-
-        return res.status(200).json({
-            success: true,
-
-            stats: {
-                totalMerchants,
-                subscribedMerchants,
-                totalCustomers,
-                totalOrders,
-            },
-
-            merchants: recentMerchants,
-        });
-    } catch (error) {
-        console.error("Dashboard Error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Failed to load dashboard.",
-        });
-    }
-};
 
 // ============================= CREATE MERCHANT LIST =============================
 export const createMerchant = async (req, res) => {
@@ -473,6 +424,7 @@ export const getMerchantList = async (req, res) => {
                 "subscription.planName": 1,
                 "subscription.endDate": 1,
                 "instagram.isConnected": 1,
+                "instagram.siteBaseUrl": 1,
             })
             .sort({ createdAt: -1 })
             .skip((page - 1) * perPage)
@@ -492,6 +444,7 @@ export const getMerchantList = async (req, res) => {
             planName: merchant.subscription?.planName || null,
             subscriptionEndDate: merchant.subscription?.endDate || null,
             instagramConnected: merchant.instagram?.isConnected || false,
+            siteBaseUrl: merchant.instagram?.siteBaseUrl || null,
             createdAt: merchant.createdAt,
         }));
 
@@ -523,7 +476,7 @@ export const getMerchantList = async (req, res) => {
 // ============================= UPDATE MERCHANT LIST =============================
 export const updateMerchant = async (req, res) => {
     try {
-        const { merchantId } = req.params;
+        const { id } = req.params;
         const {
             isSubscribed,
             features,
@@ -532,9 +485,10 @@ export const updateMerchant = async (req, res) => {
             razorpaySecret,
             logo,
             address,
+            siteBaseUrl,
         } = req.body;
 
-        if (!merchantId) {
+        if (!id) {
             return res.status(400).json({
                 success: false,
                 message: "Merchant ID is required",
@@ -555,9 +509,10 @@ export const updateMerchant = async (req, res) => {
         if (razorpaySecret) updateFields.razorpaySecret = razorpaySecret;
         if (logo) updateFields.logo = logo;
         if (address) updateFields.address = address;
+        if (siteBaseUrl !== undefined) updateFields["instagram.siteBaseUrl"] = siteBaseUrl;
 
         const merchant = await Merchant.findByIdAndUpdate(
-            merchantId,
+            id,
             { $set: updateFields },
             { new: true },
         );
@@ -580,5 +535,297 @@ export const updateMerchant = async (req, res) => {
             success: false,
             message: "Failed to update merchant",
         });
+    }
+};
+
+// ============================= GET DASHBOARD DATA =============================
+export const getDashboardData = async (req, res) => {
+    try {
+        // Dashboard counts
+        const [
+            totalMerchants,
+            subscribedMerchants,
+            recentMerchants,
+        ] = await Promise.all([
+            Merchant.countDocuments(),
+            Merchant.countDocuments({ isSubscribed: true }),
+            Merchant.find({})
+                .select({
+                    MerchantName: 1,
+                    OwnerName: 1,
+                    email: 1,
+                    phone: 1,
+                    logo: 1,
+                    isSubscribed: 1,
+                    createdAt: 1,
+                })
+                .sort({ createdAt: -1 })
+                .limit(5)
+                .lean(),
+        ]);
+
+        // Placeholder values until Customer & Order collections exist
+        const totalCustomers = 0;
+        const totalOrders = 0;
+
+        return res.status(200).json({
+            success: true,
+
+            stats: {
+                totalMerchants,
+                subscribedMerchants,
+                totalCustomers,
+                totalOrders,
+            },
+
+            merchants: recentMerchants,
+        });
+    } catch (error) {
+        console.error("Dashboard Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to load dashboard.",
+        });
+    }
+};
+
+// ============================= SALES SUMMARY =============================
+export const getSalesSummary = async (req, res) => {
+    try {
+        // total orders
+        const totalOrders = await Order.countDocuments();
+
+        // total customers (unique users who have placed orders)
+        const customersAgg = await Order.aggregate([
+            { $group: { _id: "$userId" } },
+            { $count: "uniqueCustomers" },
+        ]);
+        const totalCustomers = (customersAgg[0] && customersAgg[0].uniqueCustomers) || 0;
+
+        // total sales - sum of amountPaid for paid orders, fallback to totalAmount
+        const salesAgg = await Order.aggregate([
+            { $match: { $or: [{ isPaid: true }, { paymentStatus: "paid" }] } },
+            { $group: { _id: null, totalAmountPaid: { $sum: { $ifNull: ["$amountPaid", "$totalAmount"] } } } },
+        ]);
+
+        const totalSales = (salesAgg[0] && salesAgg[0].totalAmountPaid) || 0;
+
+        return res.status(200).json({
+            success: true,
+            stats: {
+                totalSales,
+                totalOrders,
+                totalCustomers,
+            },
+        });
+    } catch (error) {
+        console.error("Sales summary error:", error);
+        return res.status(500).json({ success: false, message: "Failed to fetch sales summary." });
+    }
+};
+
+// ============================= ORDERS LIST =============================
+export const getOrdersList = async (req, res) => {
+    try {
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const perPage = Math.max(parseInt(req.query.per_page) || 10, 1);
+        const search = (req.query.search || "").trim();
+        const status = req.query.status;
+        const merchantId = req.query.merchantId;
+
+        const filter = {};
+        if (search) {
+            const searchFilter = [
+                { orderId: { $regex: search, $options: "i" } },
+            ];
+
+            // If search is a number, also search totalAmount
+            const amount = Number(search);
+            if (!isNaN(amount)) {
+                searchFilter.push({ totalAmount: amount });
+                searchFilter.push({ amountPaid: amount });
+            }
+
+            filter.$or = searchFilter;
+        }
+        if (status) filter.orderStatus = status;
+        if (merchantId) filter.merchantId = merchantId;
+
+        const totalRecords = await Order.countDocuments(filter);
+
+        const orders = await Order.find(filter)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * perPage)
+            .limit(perPage)
+            .populate("userId", "name email")
+            .populate("merchantId", "MerchantName email")
+            .lean();
+
+        const data = orders.map((o) => ({
+            id: o._id,
+            orderId: o.orderId,
+            user: o.userId || null,
+            merchant: o.merchantId || null,
+            totalAmount: o.totalAmount,
+            amountPaid: o.amountPaid,
+            paymentStatus: o.paymentStatus,
+            orderStatus: o.orderStatus,
+            createdAt: o.createdAt,
+        }));
+
+        const totalPages = Math.ceil(totalRecords / perPage);
+
+        return res.status(200).json({
+            success: true,
+            orders: data,
+            pagination: {
+                current_page: page,
+                per_page: perPage,
+                total_records: totalRecords,
+                total_pages: totalPages,
+                has_next_page: page < totalPages,
+                has_prev_page: page > 1,
+            },
+        });
+    } catch (error) {
+        console.error("Get orders error:", error);
+        return res.status(500).json({ success: false, message: "Failed to fetch orders." });
+    }
+};
+
+// ============================= CUSTOMERS LIST =============================
+export const getCustomersList = async (req, res) => {
+    try {
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const perPage = Math.max(parseInt(req.query.per_page) || 10, 1);
+        const search = (req.query.search || "").trim();
+        const includeGuests = req.query.includeGuests === "true";
+
+        const filter = {};
+        if (!includeGuests) filter.isGuest = false;
+        if (search) filter.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
+
+        const totalRecords = await User.countDocuments(filter);
+
+        const users = await User.find(filter)
+            .select({ name: 1, email: 1, isGuest: 1, createdAt: 1 })
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * perPage)
+            .limit(perPage)
+            .lean();
+
+        const data = users.map((u) => ({
+            id: u._id,
+            name: u.name,
+            email: u.email,
+            isGuest: u.isGuest || false,
+            createdAt: u.createdAt,
+        }));
+
+        const totalPages = Math.ceil(totalRecords / perPage);
+
+        return res.status(200).json({
+            success: true,
+            customers: data,
+            pagination: {
+                current_page: page,
+                per_page: perPage,
+                total_records: totalRecords,
+                total_pages: totalPages,
+                has_next_page: page < totalPages,
+                has_prev_page: page > 1,
+            },
+        });
+    } catch (error) {
+        console.error("Get customers error:", error);
+        return res.status(500).json({ success: false, message: "Failed to fetch customers." });
+    }
+};
+
+// ============================= MERCHANT DETAIL =============================
+export const getMerchantDetail = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ success: false, message: "Merchant id required" });
+
+        const merchant = await Merchant.findById(id).lean();
+        if (!merchant) return res.status(404).json({ success: false, message: "Merchant not found" });
+
+        // revenue and orders count for this merchant
+        const agg = await Order.aggregate([
+            { $match: { merchantId: merchant._id } },
+            { $group: { _id: "$merchantId", totalSales: { $sum: { $ifNull: ["$amountPaid", "$totalAmount"] } }, ordersCount: { $sum: 1 } } },
+        ]);
+
+        const stats = agg[0] || { totalSales: 0, ordersCount: 0 };
+
+        return res.status(200).json({ success: true, merchant: { ...merchant, stats } });
+    } catch (error) {
+        console.error("Get merchant detail error:", error);
+        return res.status(500).json({ success: false, message: "Failed to fetch merchant detail." });
+    }
+};
+
+// ============================= MERCHANTS REVENUE STATS =============================
+export const getMerchantsRevenue = async (req, res) => {
+    try {
+        const top = Math.max(parseInt(req.query.top) || 10, 1);
+
+        const agg = await Order.aggregate([
+            { $group: { _id: "$merchantId", totalSales: { $sum: { $ifNull: ["$amountPaid", "$totalAmount"] } }, ordersCount: { $sum: 1 } } },
+            { $sort: { totalSales: -1 } },
+            { $limit: top },
+            { $lookup: { from: "merchants", localField: "_id", foreignField: "_id", as: "merchant" } },
+            { $unwind: { path: "$merchant", preserveNullAndEmptyArrays: true } },
+            { $project: { merchant: { MerchantName: 1, email: 1, phone: 1 }, totalSales: 1, ordersCount: 1 } },
+        ]);
+
+        return res.status(200).json({ success: true, data: agg });
+    } catch (error) {
+        console.error("Merchants revenue error:", error);
+        return res.status(500).json({ success: false, message: "Failed to fetch merchants revenue." });
+    }
+};
+
+// ============================= CUSTOMER DETAIL =============================
+export const getCustomerDetail = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ success: false, message: "Customer id required" });
+
+        const user = await User.findById(id).select({ password: 0 }).lean();
+        if (!user) return res.status(404).json({ success: false, message: "Customer not found" });
+
+        const agg = await Order.aggregate([
+            { $match: { userId: user._id } },
+            { $group: { _id: "$userId", totalOrders: { $sum: 1 }, totalSpent: { $sum: { $ifNull: ["$amountPaid", "$totalAmount"] } } } },
+        ]);
+
+        const stats = agg[0] || { totalOrders: 0, totalSpent: 0 };
+
+        return res.status(200).json({ success: true, customer: user, stats });
+    } catch (error) {
+        console.error("Get customer detail error:", error);
+        return res.status(500).json({ success: false, message: "Failed to fetch customer detail." });
+    }
+};
+
+// ============================= TOGGLE MERCHANT SUBSCRIPTION =============================
+export const toggleMerchantSubscription = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ success: false, message: "Merchant id required" });
+
+        const merchant = await Merchant.findById(id);
+        if (!merchant) return res.status(404).json({ success: false, message: "Merchant not found" });
+
+        merchant.isSubscribed = !merchant.isSubscribed;
+        await merchant.save();
+
+        return res.status(200).json({ success: true, message: "Subscription toggled", merchant: { _id: merchant._id, isSubscribed: merchant.isSubscribed } });
+    } catch (error) {
+        console.error("Toggle merchant subscription error:", error);
+        return res.status(500).json({ success: false, message: "Failed to toggle subscription." });
     }
 };
