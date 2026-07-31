@@ -5,6 +5,7 @@ import {
   generateOtp,
   sendOtpToPhone,
   isValidPhone,
+  verifyOtpForPhone,
 } from "../utils/otpUtils.js";
 
 // -------------------------------------------------------------------------
@@ -132,11 +133,13 @@ export const verifyOtp = async (req, res) => {
       });
     }
 
-    // Hardcoded OTP verification
-    if (otp !== generateOtp()) {
-      return res.status(400).json({
+    // OTP Verification
+    try {
+      await verifyOtpForPhone(phone, otp);
+    } catch (err) {
+      return res.status(err.statusCode || 400).json({
         success: false,
-        message: "Invalid OTP",
+        message: err.message,
       });
     }
 
@@ -437,11 +440,13 @@ export const verifyPhoneUpdate = async (req, res) => {
       });
     }
 
-    // Hardcoded OTP verification (same as the rest of the app for now)
-    if (otp !== generateOtp()) {
-      return res.status(400).json({
+    // OTP verification
+    try {
+      await verifyOtpForPhone(phone, otp);
+    } catch (err) {
+      return res.status(err.statusCode || 400).json({
         success: false,
-        message: "Invalid OTP",
+        message: err.message,
       });
     }
 
