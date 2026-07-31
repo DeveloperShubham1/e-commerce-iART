@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 import { User, Mail, Phone, Lock } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  updateProfile,
+  selectUser,
+} from "../Components/Redux/AuthSlice";
 import { Card, Input, Button } from "../components/ui";
 import { validateForm } from "../utils/validateForm";
 
@@ -23,7 +27,12 @@ const passwordRules = {
 };
 
 const Profile = () => {
-  const { user, updateProfile } = useAuth();
+  const dispatch = useDispatch();
+
+  const user = useSelector(selectUser);
+
+  const { updateLoading } = useSelector((state) => state.auth);
+
   const [profile, setProfile] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -32,8 +41,6 @@ const Profile = () => {
   const [pwd, setPwd] = useState({ currentPassword: "", newPassword: "" });
   const [pErrors, setPErrors] = useState({});
   const [pwdErrors, setPwdErrors] = useState({});
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [savingPwd, setSavingPwd] = useState(false);
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
@@ -49,34 +56,41 @@ const Profile = () => {
 
   const saveProfile = async (e) => {
     e.preventDefault();
+
     const { errors, isValid } = validateForm(profile, profileRules);
+
     setPErrors(errors);
+
     if (!isValid) return;
 
-    setSavingProfile(true);
     try {
-      await updateProfile(profile);
+      await dispatch(updateProfile(profile)).unwrap();
     } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSavingProfile(false);
+      toast.error(err);
     }
   };
 
   const changePassword = async (e) => {
     e.preventDefault();
-    const { errors, isValid } = validateForm(pwd, passwordRules);
+
+    const { errors, isValid } = validateForm(
+      pwd,
+      passwordRules
+    );
+
     setPwdErrors(errors);
+
     if (!isValid) return;
 
-    setSavingPwd(true);
     try {
-      await updateProfile(pwd);
-      setPwd({ currentPassword: "", newPassword: "" });
+      await dispatch(updateProfile(pwd)).unwrap();
+
+      setPwd({
+        currentPassword: "",
+        newPassword: "",
+      });
     } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSavingPwd(false);
+      toast.error(err);
     }
   };
 
@@ -118,7 +132,7 @@ const Profile = () => {
             <Input label="Email" name="email" type="email" icon={Mail} value={profile.email} onChange={handleProfileChange} error={pErrors.email} />
             <Input label="Phone" name="phone" icon={Phone} value={profile.phone} onChange={handleProfileChange} error={pErrors.phone} />
             <div className="pt-2">
-              <Button type="submit" loading={savingProfile}>Save Changes</Button>
+              <Button type="submit" loading={updateLoading}>Save Changes</Button>
             </div>
           </form>
         </Card>
@@ -129,7 +143,7 @@ const Profile = () => {
             <Input label="Current Password" name="currentPassword" type="password" icon={Lock} value={pwd.currentPassword} onChange={handlePwdChange} error={pwdErrors.currentPassword} />
             <Input label="New Password" name="newPassword" type="password" icon={Lock} value={pwd.newPassword} onChange={handlePwdChange} error={pwdErrors.newPassword} hint="Must be at least 6 characters" />
             <div className="pt-2">
-              <Button type="submit" loading={savingPwd} variant="secondary">Update Password</Button>
+              <Button type="submit" loading={updateLoading} variant="secondary">Update Password</Button>
             </div>
           </form>
         </Card>

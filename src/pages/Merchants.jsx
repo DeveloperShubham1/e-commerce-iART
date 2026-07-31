@@ -1,23 +1,27 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { Plus, Mail, Phone, MapPin, Pencil } from "lucide-react";
+import { Plus, Mail, Phone, MapPin, Link, Trash, TicketCheck, UserRound, CircleFadingPlus } from "lucide-react";
 import {
   Card,
   Button,
   Input,
-  Table,
+  ResponsiveView,
   Badge,
   FormModal,
   SkeletonRow,
   Pagination,
   SearchField,
+  ActionDropdown,
 } from "../components/ui";
 import { validateForm } from "../utils/validateForm";
 import {
-  getMerchantListApi,
-  createMerchantApi,
-  updateMerchantApi,
-} from "../api/merchant.api";
+  fetchMerchantList,
+  createMerchant,
+  updateMerchant,
+  toggleMerchantSubscription,
+} from "../Components/Redux/MerchantSlice";
+import { useNavigate } from "react-router-dom";
 
 const PER_PAGE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -67,9 +71,19 @@ const emptyPagination = {
 };
 
 const Merchants = () => {
-  const [merchants, setMerchants] = useState([]);
-  const [pagination, setPagination] = useState(emptyPagination);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const {
+    merchants: merchantState,
+    createMerchantLoading: submitting,
+    updateMerchantLoading: editSubmitting,
+    toggleSubscriptionLoading,
+  } = useSelector((state) => state.merchant);
+
+  const merchants = merchantState.data;
+  const pagination = merchantState.pagination || emptyPagination;
+  const loading = merchantState.loading;
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -77,8 +91,6 @@ const Merchants = () => {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [editSubmitting, setEditSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [editingId, setEditingId] = useState(null);
@@ -93,26 +105,15 @@ const Merchants = () => {
     return () => clearTimeout(handle);
   }, [search]);
 
-  const fetchMerchants = useCallback(async (page, searchTerm) => {
-    setLoading(true);
-    try {
-      const data = await getMerchantListApi({
-        page,
-        limit: PER_PAGE,
-        search: searchTerm,
-      });
-      setMerchants(data.merchants || []);
-      setPagination(data.pagination || emptyPagination);
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchMerchants(currentPage, debouncedSearch);
-  }, [fetchMerchants, currentPage, debouncedSearch]);
+    dispatch(
+      fetchMerchantList({
+        page: currentPage,
+        limit: PER_PAGE,
+        search: debouncedSearch,
+      })
+    );
+  }, [dispatch, currentPage, debouncedSearch]);
 
   const handleSearchChange = (value) => {
     setSearch(value);
@@ -139,11 +140,7 @@ const Merchants = () => {
   const openEditModal = (merchant) => {
     setEditingId(merchant._id);
     setEditForm({
-      isSubscribed: merchant.isSubscribed || false,
-      razorpayKey: merchant.razorpayKey || "",
-      razorpaySecret: merchant.razorpaySecret || "",
-      logo: merchant.logo || "",
-      address: merchant.address || "",
+      siteBaseUrl: merchant.siteBaseUrl || "",
     });
     setEditModalOpen(true);
   };
@@ -154,18 +151,23 @@ const Merchants = () => {
     setErrors(errs);
     if (!isValid) return;
 
-    setSubmitting(true);
     try {
-      const data = await createMerchantApi(form);
-      toast.success(data.message || "Merchant created");
-      setModalOpen(false);
-      // new merchant should be visible — jump back to page 1 of the current search
-      setCurrentPage(1);
-      fetchMerchants(1, debouncedSearch);
+      await dispatch(createMerchant(form)).unwrap().then((data) => {
+        if (data.success) {
+          setModalOpen(false);
+          setCurrentPage(1);
+
+          dispatch(
+            fetchMerchantList({
+              page: 1,
+              limit: PER_PAGE,
+              search: debouncedSearch,
+            })
+          );
+        }
+      })
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -173,16 +175,34 @@ const Merchants = () => {
     e.preventDefault();
     if (!editingId) return;
 
-    setEditSubmitting(true);
     try {
-      const data = await updateMerchantApi(editingId, editForm);
-      toast.success(data.message || "Merchant updated");
-      setEditModalOpen(false);
-      fetchMerchants(currentPage, debouncedSearch);
+      await dispatch(
+        updateMerchant({
+          id: editingId,
+          payload: editForm,
+        })
+      ).unwrap().then((data) => {
+        if (data.success) {
+          setEditModalOpen(false)
+          dispatch(
+            fetchMerchantList({
+              page: currentPage,
+              limit: PER_PAGE,
+              search: debouncedSearch,
+            })
+          );
+        }
+      })
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setEditSubmitting(false);
+    }
+  };
+
+  const handleSubscriptionToggle = async (merchant) => {
+    try {
+      await dispatch(toggleMerchantSubscription(merchant._id)).unwrap();
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -226,9 +246,17 @@ const Merchants = () => {
       key: "isSubscribed",
       header: "Subscription",
       render: (row) => (
-        <Badge variant={row.isSubscribed ? "success" : "neutral"}>
-          {row.planName || (row.isSubscribed ? "Active" : "Free")}
-        </Badge>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={row.isSubscribed}
+            disabled={toggleSubscriptionLoading}
+            onChange={() => handleSubscriptionToggle(row)}
+          />
+
+          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-green-600 transition-all after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:h-5 after:w-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
+        </label>
       ),
     },
     {
@@ -245,19 +273,53 @@ const Merchants = () => {
       header: "Joined",
       render: (row) => new Date(row.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
     },
-    // {
-    //   key: "actions",
-    //   header: "Actions",
-    //   render: (row) => (
-    //     <button
-    //       onClick={(e) => { e.stopPropagation(); openEditModal(row); }}
-    //       className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-primary-50 hover:text-primary-600"
-    //       title="Edit merchant"
-    //     >
-    //       <Pencil className="h-4 w-4" />
-    //     </button>
-    //   ),
-    // },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (row) => (
+        <ActionDropdown
+          actions={[
+            {
+              label: "Orders",
+              icon: TicketCheck,
+              onClick: () => {
+                navigate(`/orders/${row._id}`);
+              },
+            },
+            {
+              label: "Customer",
+              icon: UserRound,
+              onClick: () => {
+                console.log("Customers", row);
+                navigate(`/customers/${row._id}`);
+              },
+            },
+            {
+              label: "Social Replies",
+              icon: CircleFadingPlus,
+              onClick: () => {
+                console.log("Social Replies", row);
+                // navigate(`/merchant/${row._id}`);
+              },
+            },
+            {
+              label: "Site URL",
+              icon: Link,
+              onClick: () => openEditModal(row),
+            },
+            // {
+            //   divider: true,
+            // },
+            // {
+            //   label: "Delete",
+            //   icon: Trash,
+            //   className: "text-red-600 hover:bg-red-50",
+            //   onClick: () => handleDelete(row),
+            // },
+          ]}
+        />
+      ),
+    }
   ];
 
   return (
@@ -298,7 +360,7 @@ const Merchants = () => {
             </table>
           </div>
         ) : (
-          <Table columns={columns} data={merchants} emptyText="No merchants found" />
+          <ResponsiveView columns={columns} data={merchants} emptyText="No merchants found" />
         )}
         {!loading && pagination.total_records > 0 && (
           <div className="border-t border-slate-100">
@@ -335,27 +397,14 @@ const Merchants = () => {
       <FormModal
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
-        title="Edit Merchant"
+        title="Merchant Site URL"
         onSubmit={handleEditSubmit}
         submitting={editSubmitting}
-        submitLabel="Update Merchant"
+        submitLabel="Update Site URL"
         size="lg"
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Razorpay Key" name="razorpayKey" value={editForm.razorpayKey} onChange={handleEditChange} placeholder="rzp_live_xxx" />
-          <Input label="Razorpay Secret" name="razorpaySecret" value={editForm.razorpaySecret} onChange={handleEditChange} placeholder="secret_xxx" />
-          <Input label="Logo URL" name="logo" value={editForm.logo} onChange={handleEditChange} placeholder="https://..." />
-          <Input label="Address" name="address" value={editForm.address} onChange={handleEditChange} placeholder="123 Main St, City" />
-          <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 sm:col-span-2">
-            <input
-              type="checkbox"
-              name="isSubscribed"
-              checked={editForm.isSubscribed}
-              onChange={handleEditChange}
-              className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-            />
-            <span className="text-sm font-medium text-slate-700">Subscribed (active subscription)</span>
-          </label>
+        <div className="grid grid-cols-1 gap-4">
+          <Input label="Site Base URL" name="siteBaseUrl" value={editForm.siteBaseUrl} onChange={handleEditChange} placeholder="https://example.com" />
         </div>
       </FormModal>
     </div>

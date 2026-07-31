@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Mail, Lock, ShieldCheck, ArrowRight } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { useDispatch, useSelector } from "react-redux";
+import { login, selectAuthError } from "../Components/Redux/AuthSlice";
 import { Input, Button } from "../components/ui";
 import { validateForm } from "../utils/validateForm";
 
@@ -17,35 +18,34 @@ const rules = {
 };
 
 const Login = () => {
-  const { login } = useAuth();
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const authError = useSelector(selectAuthError);
+  const submitting = useSelector((state) => state.auth.loginLoading);
   const from = location.state?.from?.pathname || "/dashboard";
 
   const [values, setValues] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setValues((v) => ({ ...v, [name]: value }));
     if (errors[name]) setErrors((er) => ({ ...er, [name]: undefined }));
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const { errors: errs, isValid } = validateForm(values, rules);
     setErrors(errs);
+
     if (!isValid) return;
 
-    setSubmitting(true);
     try {
-      await login(values);
+      await dispatch(login(values)).unwrap();
       navigate(from, { replace: true });
     } catch (err) {
-      setErrors({ form: err.message });
-    } finally {
-      setSubmitting(false);
+      setErrors({ form: err });
     }
   };
 
@@ -62,9 +62,9 @@ const Login = () => {
         </div>
 
         <div className="card p-6 sm:p-8 animate-slide-up">
-          {errors.form && (
+          {(errors.form || authError) && (
             <div className="mb-4 rounded-lg border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700">
-              {errors.form}
+              {errors.form || authError}
             </div>
           )}
 

@@ -1,9 +1,9 @@
 import { NavLink } from "react-router-dom";
-import fabIcon from "../../../public/fabIcon.png"
+import Logo from "../../../public/DigiShopTextLogo.png"
 import {
   LayoutDashboard,
   Store,
-  Users,
+  User,
   Package,
   ShoppingCart,
   Settings,
@@ -14,9 +14,9 @@ import {
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/merchants", label: "Merchants", icon: Store },
-  { to: "/customers", label: "Customers", icon: Users },
-  { to: "/products", label: "Products", icon: Package },
-  { to: "/orders", label: "Orders", icon: ShoppingCart },
+  { to: "/profile", label: "My Profile", icon: User },
+  // { to: "/products", label: "Products", icon: Package },
+  // { to: "/orders", label: "Orders", icon: ShoppingCart },
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -45,7 +45,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
               <img
-                src={fabIcon}
+                src={Logo}
                 alt="FAB Logo"
                 className="h-8 w-8 object-contain"
               />

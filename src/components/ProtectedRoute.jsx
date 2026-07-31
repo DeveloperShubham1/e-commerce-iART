@@ -1,15 +1,20 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useSelector } from "react-redux";
 import { FullPageSpinner } from "./ui/Spinner";
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) return <FullPageSpinner />;
+  const { isAuthenticated, profileLoading } = useSelector(
+    (state) => state.auth
+  );
+
+  if (profileLoading) return <FullPageSpinner />;
+
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
+
   return children;
 };
 

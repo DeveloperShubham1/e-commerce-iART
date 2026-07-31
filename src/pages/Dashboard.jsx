@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Store,
@@ -10,47 +10,29 @@ import {
   Plus,
 } from "lucide-react";
 import { Card, Badge, Button, Skeleton, SkeletonCard, StatCard } from "../components/ui";
-import { getDashboardApi } from "../api/auth.api";
+import { useDispatch, useSelector } from "react-redux";
+import { getDashboard } from "../Components/Redux/AuthSlice";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-
-  const [merchants, setMerchants] = useState([]);
-  const [stats, setStats] = useState({
-    totalMerchants: 0,
-    subscribedMerchants: 0,
-    totalCustomers: 0,
-    totalOrders: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const {
+    dashboardLoading: loading,
+    dashboardData,
+  } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    getDashboardApi()
-      .then((data) => {
-        setMerchants(data.merchants || []);
-        setStats(data.stats || {
-          totalMerchants: 0,
-          subscribedMerchants: 0,
-          totalCustomers: 0,
-          totalOrders: 0,
-        });
-      })
-      .catch(() => {
-        setMerchants([]);
-        setStats({
-          totalMerchants: 0,
-          subscribedMerchants: 0,
-          totalCustomers: 0,
-          totalOrders: 0,
-        });
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    dispatch(getDashboard());
+  }, [dispatch]);
+
+  const stats = dashboardData?.stats || {};
 
   const totalMerchant = stats.totalMerchants
   const subscribed = stats.subscribedMerchants
   const customer = stats.totalCustomers
   const order = stats.totalOrders;
+
+  const merchants = dashboardData?.merchants || [];
 
   return (
     <div className="space-y-6">

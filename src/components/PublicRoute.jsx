@@ -1,11 +1,18 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useSelector } from "react-redux";
 import { FullPageSpinner } from "../components/ui/Spinner";
 
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
-  if (loading) return <FullPageSpinner />;
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  const { isAuthenticated, profileLoading } = useSelector(
+    (state) => state.auth
+  );
+
+  if (profileLoading) return <FullPageSpinner />;
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return children;
 };
 

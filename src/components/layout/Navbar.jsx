@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Menu, Bell, ChevronDown, LogOut, User, Settings } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { useDispatch, useSelector } from "react-redux";
+import { logout } from "../../Components/Redux/AuthSlice";
 
 const Navbar = ({ onToggleSidebar }) => {
-  const { user, logout } = useAuth();
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const ref = useRef(null);
@@ -69,7 +71,11 @@ const Navbar = ({ onToggleSidebar }) => {
               </button>
               <div className="my-1 border-t border-slate-100" />
               <button
-                onClick={() => { setMenuOpen(false); logout(); navigate("/login"); }}
+                onClick={() => {
+                  setMenuOpen(false);
+                  dispatch(logout());
+                  navigate("/login", { replace: true });
+                }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-error-600 hover:bg-error-50"
               >
                 <LogOut className="h-4 w-4" /> Sign out
