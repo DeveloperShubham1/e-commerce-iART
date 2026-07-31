@@ -109,7 +109,7 @@ export default function CreateInstagramProductModal({ onClose }) {
     setErrors((prev) => ({ ...prev, instagram_media_id: null, general: null }));
   };
 
-  const USER_FRONTEND_URL = data?.instagram?.siteBaseUrl || import.meta.env.VITE_USER_FRONTEND_URL;
+  const USER_FRONTEND_URL = data?.instagram?.siteBaseUrl;
   const selectProduct = (product) => {
     const category = product.categoryId?.name?.toLowerCase()?.replace(/\s+/g, "-") || "product";
     setForm((prev) => ({

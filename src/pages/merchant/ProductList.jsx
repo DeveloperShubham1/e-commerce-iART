@@ -6,9 +6,11 @@ import { Link as LinkIcon } from "lucide-react";
 import EditProductModal from "../../components/merchant/EditProductModal";
 import ConfirmModal from "../../functions/ConfirmModal";
 import ProductCardShimmer from "../../components/merchant/skeletons/ProductCardShimmer";
+import { useInstagramConfig } from "@/services/merchant";
 
 const ProductList = () => {
   const { axios, currency } = useAppContext();
+  const { data, isLoading } = useInstagramConfig();
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -218,7 +220,7 @@ const ProductList = () => {
       ?.toLowerCase()
       .replace(/\s+/g, "-"); // Suit -> suit, Men's Wear -> men's-wear
 
-    const productUrl = `${import.meta.env.VITE_USER_FRONTEND_URL}/products/${category}/${product._id}`;
+    const productUrl = `${data?.instagram?.siteBaseUrl}/products/${category}/${product._id}`;
 
     try {
       await navigator.clipboard.writeText(productUrl);

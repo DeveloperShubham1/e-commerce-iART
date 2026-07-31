@@ -219,9 +219,22 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
                 <select
                   className="w-full border p-2 rounded"
                   value={editable.paymentStatus}
-                  onChange={(e) =>
-                    handleChange("paymentStatus", e.target.value)
-                  }
+                 onChange={(e) => {
+  const value = e.target.value;
+
+  setEditable((prev) => ({
+    ...prev,
+    paymentStatus: value,
+    amountPaid:
+      value === "paid"
+        ? order.totalAmount
+        : value === "failed"
+        ? 0
+        : value === "pending"
+        ? 0
+        : prev.amountPaid,
+  }));
+}}
                 >
                   <option value="pending">Pending</option>
                   <option value="partial">Partially Paid</option>
@@ -278,8 +291,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
 
             {/* Tracking Partner */}
             {(editable.orderStatus === "shipped" ||
-              editable.orderStatus === "delivered" ||
-              editable.orderStatus === "cancelled") && (
+              editable.orderStatus === "delivered") && (
                 <div>
                   <label className="font-semibold">
                     Tracking Partner
@@ -312,8 +324,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
 
             {/* Status tracking id */}
             {(editable.orderStatus === "shipped" ||
-              editable.orderStatus === "delivered" ||
-              editable.orderStatus === "cancelled") && (
+              editable.orderStatus === "delivered") && (
                 <div>
                   <label className="font-semibold">
                     Tracking ID

@@ -107,8 +107,8 @@ const Navbar = () => {
               alt="logo"
             />
           )}
-          <span className="text-lg sm:text-2xl font-semibold tracking-wide leading-none whitespace-nowrap text-[var(--color-primary)]">
-            {settings?.title}
+          <span className="text-lg sm:text-2xl font-semibold tracking-wide leading-none whitespace-nowrap text-[var(--color-primary)] truncate" title={settings?.title || "Brand Name"}>
+            {settings?.title || "Brand Name"}
           </span>
         </NavLink>
 

@@ -824,7 +824,7 @@ const BuyNow = () => {
                     onClick={() => setShowAddress(!showAddress)}
                     className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
                   >
-                    {showAddress ? "Close" : "Change"}
+                   {showAddress ? "Close" : selectedAddress ? "Change" : "Add New Address"}
                   </button>
                 </div>
 

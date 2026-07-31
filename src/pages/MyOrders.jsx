@@ -17,6 +17,7 @@ import {
 import { toast } from "react-toastify";
 import { useUserOrders } from "../services/user";
 import Pagination from "../components/Pagination";
+import { useNavigate } from "react-router-dom";
 
 const COURIER_LABELS = {
   delhivery: "Delhivery",
@@ -97,6 +98,7 @@ const OrderSkeleton = () => (
 
 const MyOrders = () => {
   const { currency, user } = useAppContext();
+  const navigate = useNavigate();
 
   const [previewImage, setPreviewImage] = useState(null);
   const [page, setPage] = useState(1);
@@ -151,7 +153,7 @@ const MyOrders = () => {
   };
 
   return (
-    <div className="mt-16 pb-16 max-w-6xl mx-auto px-4 sm:px-6">
+    <div className="mt-16 pb-16 max-w-7xl mx-auto px-4 sm:px-6">
       {/* ================= HEADER ================= */}
       <div className="mb-10">
         <p className="text-2xl font-semibold tracking-tight">My Orders</p>
@@ -171,7 +173,7 @@ const MyOrders = () => {
           <OrderSkeleton />
         </>
       ) : orders.length === 0 ? (
-        <div className="text-center py-24 max-w-md mx-auto">
+        <div className="text-center py-24 max-w-lg mx-auto">
           <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-5">
             <ShoppingBag className="w-7 h-7 text-gray-400" strokeWidth={1.5} />
           </div>
@@ -180,8 +182,8 @@ const MyOrders = () => {
             Once you place an order, you'll be able to track its progress here.
           </p>
           <a
-            href="/products"
-            className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-full bg-primary text-white text-sm font-medium hover:opacity-90 transition"
+            onClick={() => navigate("/products")}
+            className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 cursor-pointer rounded-full bg-primary text-white text-sm font-medium hover:opacity-90 transition"
           >
             Start shopping
           </a>
@@ -205,7 +207,7 @@ const MyOrders = () => {
             return (
               <div
                 key={order._id}
-                className="border border-gray-200 rounded-2xl mb-8 bg-white max-w-5xl w-full mx-auto shadow-sm hover:shadow-md transition-shadow"
+                className="border border-gray-200 rounded-2xl mb-8 bg-white max-w-7xl w-full mx-auto shadow-sm hover:shadow-md transition-shadow"
               >
                 {/* ================= ORDER HEADER ================= */}
                 <div className="flex flex-wrap items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-gray-100">
@@ -226,26 +228,43 @@ const MyOrders = () => {
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                      className={
-                        ORDER_STATUS_STYLES[order.orderStatus] ||
-                        "bg-gray-100 text-gray-700"
-                      }
-                    >
-                      {order.orderStatus}
-                    </Badge>
-                    <Badge
-                      className={
-                        PAYMENT_STATUS_STYLES[order.paymentStatus] ||
-                        "bg-gray-100 text-gray-700"
-                      }
-                    >
-                      {order.paymentStatus}
-                    </Badge>
-                    <Badge className="bg-gray-900 text-white">
-                      {order.paymentType?.toUpperCase()}
-                    </Badge>
+                  <div className="flex flex-wrap items-start gap-3">
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                        Order
+                      </span>
+                      <Badge
+                        className={
+                          ORDER_STATUS_STYLES[order.orderStatus] ||
+                          "bg-gray-100 text-gray-700"
+                        }
+                      >
+                        {order.orderStatus}
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                        Payment
+                      </span>
+                      <Badge
+                        className={
+                          PAYMENT_STATUS_STYLES[order.paymentStatus] ||
+                          "bg-gray-100 text-gray-700"
+                        }
+                      >
+                        {order.paymentStatus}
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                        Method
+                      </span>
+                      <Badge className="bg-gray-900 text-white">
+                        {order.paymentType?.toUpperCase()}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
 
@@ -416,10 +435,10 @@ const MyOrders = () => {
                                 >
                                   <div
                                     className={`w-12 h-12 rounded-full flex items-center justify-center shadow-sm ring-4 ring-gray-50 transition-colors ${isCompleted
-                                        ? "bg-green-500 text-white"
-                                        : isActive
-                                          ? "bg-amber-400 text-white animate-pulse"
-                                          : "bg-gray-200 text-gray-500"
+                                      ? "bg-green-500 text-white"
+                                      : isActive
+                                        ? "bg-amber-400 text-white animate-pulse"
+                                        : "bg-gray-200 text-gray-500"
                                       }`}
                                   >
                                     <StepIcon className="w-5 h-5" strokeWidth={2} />
@@ -427,8 +446,8 @@ const MyOrders = () => {
 
                                   <p
                                     className={`mt-3 text-sm font-medium ${isCompleted || isActive
-                                        ? "text-gray-900"
-                                        : "text-gray-400"
+                                      ? "text-gray-900"
+                                      : "text-gray-400"
                                       }`}
                                   >
                                     {step.label}
@@ -459,23 +478,35 @@ const MyOrders = () => {
                     <h3 className="text-base font-semibold mb-3 text-gray-900">
                       Shipping Address
                     </h3>
+
                     <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 flex gap-3">
                       <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
-                      <div className="text-sm text-gray-700 leading-relaxed">
-                        <p className="font-medium text-gray-900">
-                          {order.address.firstName} {order.address.lastName}
-                        </p>
-                        <p>{order.address.street}</p>
-                        <p>
-                          {order.address.city}, {order.address.state}{" "}
-                          {order.address.zipcode}
-                        </p>
-                        <p>{order.address.country}</p>
-                        <p className="mt-2 flex items-center gap-1.5 font-medium text-gray-900">
-                          <Phone className="w-3.5 h-3.5 text-gray-400" />
-                          {order.address.phone}
-                        </p>
-                      </div>
+
+                      {order.address ? (
+                        <div className="text-sm text-gray-700 leading-relaxed">
+                          <p className="font-medium text-gray-900">
+                            {order.address.firstName} {order.address.lastName}
+                          </p>
+
+                          <p>{order.address.street}</p>
+
+                          <p>
+                            {order.address.city}, {order.address.state}{" "}
+                            {order.address.zipcode}
+                          </p>
+
+                          <p>{order.address.country}</p>
+
+                          <p className="mt-2 flex items-center gap-1.5 font-medium text-gray-900">
+                            <Phone className="w-3.5 h-3.5 text-gray-400" />
+                            {order.address.phone}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500 italic">
+                          Shipping address is not available.
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -499,8 +530,8 @@ const MyOrders = () => {
                         <div
                           key={item._id}
                           className={`flex flex-col sm:flex-row justify-between gap-4 py-5 ${index !== order.items.length - 1
-                              ? "border-b border-gray-100"
-                              : ""
+                            ? "border-b border-gray-100"
+                            : ""
                             }`}
                         >
                           <div className="flex gap-4">
