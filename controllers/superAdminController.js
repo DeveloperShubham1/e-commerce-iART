@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import SuperAdmin from "../models/SuperAdmin.js";
@@ -590,41 +591,6 @@ export const getDashboardData = async (req, res) => {
     }
 };
 
-// ============================= SALES SUMMARY =============================
-export const getSalesSummary = async (req, res) => {
-    try {
-        // total orders
-        const totalOrders = await Order.countDocuments();
-
-        // total customers (unique users who have placed orders)
-        const customersAgg = await Order.aggregate([
-            { $group: { _id: "$userId" } },
-            { $count: "uniqueCustomers" },
-        ]);
-        const totalCustomers = (customersAgg[0] && customersAgg[0].uniqueCustomers) || 0;
-
-        // total sales - sum of amountPaid for paid orders, fallback to totalAmount
-        const salesAgg = await Order.aggregate([
-            { $match: { $or: [{ isPaid: true }, { paymentStatus: "paid" }] } },
-            { $group: { _id: null, totalAmountPaid: { $sum: { $ifNull: ["$amountPaid", "$totalAmount"] } } } },
-        ]);
-
-        const totalSales = (salesAgg[0] && salesAgg[0].totalAmountPaid) || 0;
-
-        return res.status(200).json({
-            success: true,
-            stats: {
-                totalSales,
-                totalOrders,
-                totalCustomers,
-            },
-        });
-    } catch (error) {
-        console.error("Sales summary error:", error);
-        return res.status(500).json({ success: false, message: "Failed to fetch sales summary." });
-    }
-};
-
 // ============================= ORDERS LIST =============================
 export const getOrdersList = async (req, res) => {
     try {
@@ -701,27 +667,94 @@ export const getCustomersList = async (req, res) => {
         const perPage = Math.max(parseInt(req.query.per_page) || 10, 1);
         const search = (req.query.search || "").trim();
         const includeGuests = req.query.includeGuests === "true";
+        const merchantId = req.query.merchantId;
 
         const filter = {};
-        if (!includeGuests) filter.isGuest = false;
-        if (search) filter.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
+
+        if (!includeGuests) {
+            filter.isGuest = false;
+        }
+
+        if (search) {
+            filter.$or = [
+                { name: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } },
+            ];
+        }
+
+        if (merchantId) {
+            filter["merchantData.merchantId"] = new mongoose.Types.ObjectId(
+                merchantId
+            );
+        }
 
         const totalRecords = await User.countDocuments(filter);
 
         const users = await User.find(filter)
-            .select({ name: 1, email: 1, isGuest: 1, createdAt: 1 })
+            .populate("merchantData.merchantId", "MerchantName email")
+            .select({
+                name: 1,
+                email: 1,
+                isGuest: 1,
+                createdAt: 1,
+                merchantData: 1,
+                cartItems: 1,
+            })
             .sort({ createdAt: -1 })
             .skip((page - 1) * perPage)
             .limit(perPage)
             .lean();
 
-        const data = users.map((u) => ({
-            id: u._id,
-            name: u.name,
-            email: u.email,
-            isGuest: u.isGuest || false,
-            createdAt: u.createdAt,
-        }));
+        const customerIds = users.map((u) => u._id);
+
+        const orderStats = await Order.aggregate([
+            {
+                $match: {
+                    userId: {
+                        $in: customerIds,
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id: "$userId",
+                    totalOrders: { $sum: 1 },
+                    totalSpent: { $sum: "$amountPaid" },
+                    lastOrder: { $max: "$createdAt" },
+                },
+            },
+        ]);
+
+        const statsMap = {};
+
+        orderStats.forEach((item) => {
+            statsMap[item._id.toString()] = item;
+        });
+
+        const data = users.map((user) => {
+            const stats = statsMap[user._id.toString()] || {};
+
+            return {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                isGuest: user.isGuest,
+
+                merchantCount: user.merchantData.length,
+
+                merchant: user.merchantData[0]?.merchantId,
+
+                cartItems: user.cartItems.length,
+
+                totalOrders: stats.totalOrders || 0,
+
+                totalSpent: stats.totalSpent || 0,
+
+                lastOrder: stats.lastOrder || null,
+
+                createdAt: user.createdAt,
+            };
+        });
 
         const totalPages = Math.ceil(totalRecords / perPage);
 
@@ -739,7 +772,64 @@ export const getCustomersList = async (req, res) => {
         });
     } catch (error) {
         console.error("Get customers error:", error);
-        return res.status(500).json({ success: false, message: "Failed to fetch customers." });
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch customers.",
+        });
+    }
+};
+
+// ============================= TOGGLE MERCHANT SUBSCRIPTION =============================
+export const toggleMerchantSubscription = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) return res.status(400).json({ success: false, message: "Merchant id required" });
+
+        const merchant = await Merchant.findById(id);
+        if (!merchant) return res.status(404).json({ success: false, message: "Merchant not found" });
+
+        merchant.isSubscribed = !merchant.isSubscribed;
+        await merchant.save();
+
+        return res.status(200).json({ success: true, message: "Subscription toggled", merchant: { _id: merchant._id, isSubscribed: merchant.isSubscribed } });
+    } catch (error) {
+        console.error("Toggle merchant subscription error:", error);
+        return res.status(500).json({ success: false, message: "Failed to toggle subscription." });
+    }
+};
+
+// ============================= SALES SUMMARY =============================
+export const getSalesSummary = async (req, res) => {
+    try {
+        // total orders
+        const totalOrders = await Order.countDocuments();
+
+        // total customers (unique users who have placed orders)
+        const customersAgg = await Order.aggregate([
+            { $group: { _id: "$userId" } },
+            { $count: "uniqueCustomers" },
+        ]);
+        const totalCustomers = (customersAgg[0] && customersAgg[0].uniqueCustomers) || 0;
+
+        // total sales - sum of amountPaid for paid orders, fallback to totalAmount
+        const salesAgg = await Order.aggregate([
+            { $match: { $or: [{ isPaid: true }, { paymentStatus: "paid" }] } },
+            { $group: { _id: null, totalAmountPaid: { $sum: { $ifNull: ["$amountPaid", "$totalAmount"] } } } },
+        ]);
+
+        const totalSales = (salesAgg[0] && salesAgg[0].totalAmountPaid) || 0;
+
+        return res.status(200).json({
+            success: true,
+            stats: {
+                totalSales,
+                totalOrders,
+                totalCustomers,
+            },
+        });
+    } catch (error) {
+        console.error("Sales summary error:", error);
+        return res.status(500).json({ success: false, message: "Failed to fetch sales summary." });
     }
 };
 
@@ -808,24 +898,5 @@ export const getCustomerDetail = async (req, res) => {
     } catch (error) {
         console.error("Get customer detail error:", error);
         return res.status(500).json({ success: false, message: "Failed to fetch customer detail." });
-    }
-};
-
-// ============================= TOGGLE MERCHANT SUBSCRIPTION =============================
-export const toggleMerchantSubscription = async (req, res) => {
-    try {
-        const { id } = req.params;
-        if (!id) return res.status(400).json({ success: false, message: "Merchant id required" });
-
-        const merchant = await Merchant.findById(id);
-        if (!merchant) return res.status(404).json({ success: false, message: "Merchant not found" });
-
-        merchant.isSubscribed = !merchant.isSubscribed;
-        await merchant.save();
-
-        return res.status(200).json({ success: true, message: "Subscription toggled", merchant: { _id: merchant._id, isSubscribed: merchant.isSubscribed } });
-    } catch (error) {
-        console.error("Toggle merchant subscription error:", error);
-        return res.status(500).json({ success: false, message: "Failed to toggle subscription." });
     }
 };
