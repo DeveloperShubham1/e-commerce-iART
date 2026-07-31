@@ -38,7 +38,7 @@ const Login = () => {
     try {
       setSending(true);
 
-      const { data } = await axios.post("/api/user/otp/send", {
+      const { data } = await axios.post("/api/otp/send", {
         phone,
         merchantId,
       });
@@ -88,7 +88,7 @@ const Login = () => {
     try {
       setVerifying(true);
 
-      const { data } = await axios.post("/api/user/otp/verify", {
+      const { data } = await axios.post("/api/otp/verify", {
         phone,
         otp,
         merchantId,

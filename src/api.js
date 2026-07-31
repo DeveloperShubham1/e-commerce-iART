@@ -111,7 +111,7 @@ export const syncInstagramAllComments = async () => {
 };
 
 export const updateProfile = async (payload) => {
-    const { data } = await axios.patch("/api/user/profile", payload);
+    const { data } = await axios.patch("/api/otp/profile", payload);
     return data;
 };
 

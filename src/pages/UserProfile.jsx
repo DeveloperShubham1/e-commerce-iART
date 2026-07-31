@@ -93,7 +93,7 @@ export default function ProfilePage() {
 
     try {
       setVerifying(true);
-      const { data } = await axios.post("/api/user/verify-phone-update", {
+      const { data } = await axios.post("/api/otp/verify-phone-update", {
         phone: pendingPhone,
         otp,
         merchantId,
@@ -117,7 +117,7 @@ export default function ProfilePage() {
 
     try {
       setResending(true);
-      const { data } = await axios.post("/api/user/resend-phone-update-otp", {
+      const { data } = await axios.post("/api/otp/resend-phone-update-otp", {
         phone: pendingPhone,
         merchantId,
       });
