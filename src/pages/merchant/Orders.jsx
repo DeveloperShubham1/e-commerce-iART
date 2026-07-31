@@ -239,7 +239,7 @@ const OrdersTable = ({ orders, onSelectOrder }) => (
             <td className="px-6 py-4 font-semibold text-sm">{order.orderId}</td>
             <td className="px-6 py-4">
               <div className="font-semibold text-sm">
-                {order.userId?.name || "N/A"}
+                {order.userId?.name|| order.userId?.phone || "N/A"}
               </div>
               <div className="text-xs text-gray-500">{order.userId?.email}</div>
             </td>
@@ -473,7 +473,7 @@ const Orders = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-800">All Orders</h1>
         <p className="text-gray-600 mt-1">
-          Monitor and manage your orders efficiently
+          
         </p>
       </div>
 

@@ -47,7 +47,6 @@ const Navbar = () => {
         toast.success(data.message);
         if (BUILD_TYPE == "user") {
           navigate("/");
-          window.location.reload();
         } else {
           navigate("/merchant");
         }

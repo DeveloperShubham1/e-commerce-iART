@@ -41,6 +41,7 @@ import { ExchangePolicy } from "./pages/Policies/ExchangePolicy";
 import { ShippingPolicy } from "./pages/Policies/ShippingPolicy";
 import { TermsPolicy } from "./pages/Policies/TermsPolicy";
 import { PrivacyPolicy } from "./pages/Policies/PrivacyPolicy";
+import CollectionsPage from "./pages/merchant/Collections/CollectionsPage";
 
 
 const BUILD_TYPE = import.meta.env.VITE_BUILD_TYPE; // user | merchant
@@ -195,6 +196,7 @@ const App = () => {
                 <Route path="report" element={<ReportPage />} />
                 <Route path="instagram-products" element={<Instagramproductspage />} />
                 <Route path="profile" element={<ExistProfile />} />
+                <Route path="collections" element={<CollectionsPage />} />
                 {/* <Route path="profile" element={<Profile />} /> */}
               </Route>
             )}

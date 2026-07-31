@@ -7,6 +7,7 @@ import reportIcon from "../../assets/reportIcon.svg";
 import instagram from "../../assets/instagram.svg";
 import userGear from "../../assets/user-gear.svg";
 import mLogo from "../../assets/textLogo.png";
+import collectionsIcon from "../../assets/collections.svg"
 
 import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 
@@ -39,6 +40,11 @@ const SellerLayout = () => {
           name: "Instagram Products",
           path: "/instagram-products",
           icon: instagram,
+        },
+        {
+          name: "Collections",
+          path: "/collections",
+          icon: collectionsIcon,
         },
       ],
     },
@@ -208,7 +214,7 @@ const SellerLayout = () => {
           >
             <div className="flex items-center justify-between h-16 px-5 border-b border-gray-100">
               <span className="font-semibold text-lg text-gray-800">
-                Merchant 
+                Merchant
               </span>
               <button
                 onClick={() => setMobileOpen(false)}

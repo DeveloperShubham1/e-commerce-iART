@@ -142,9 +142,9 @@ const PaymentQrModal = ({
 
         {/* Modal Header */}
         <div className="text-center pt-2 pb-4">
-          <div className="mx-auto w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-3">
+          {/* <div className="mx-auto w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-3">
             <QrCode className="w-6 h-6 text-indigo-600" />
-          </div>
+          </div> */}
           <h3 className="text-xl font-bold text-slate-900">{title}</h3>
           <p className="mt-1.5 text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
             {isUpi

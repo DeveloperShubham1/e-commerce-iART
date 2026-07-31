@@ -5,7 +5,8 @@ import {
     getPaymentConfigForUser,
     getProductById,
     getProductsByCategory,
-    getProducts
+    getProducts,
+    getUserOrders
 } from "../api";
 import { toast } from "react-toastify";
 
@@ -17,7 +18,6 @@ export const useUpdateProfile = () => {
         mutationFn: updateProfile,
 
         onSuccess: (data) => {
-            toast.success(data.message);
 
             queryClient.invalidateQueries({
                 queryKey: ["profile"],
@@ -55,6 +55,16 @@ export const useProductsByCategory = (categoryId, productId) => {
         queryKey: ["products-by-category", categoryId],
         queryFn: () => getProductsByCategory(categoryId, productId),
         enabled: !!categoryId && !!productId,
+    });
+};
+
+export const useUserOrders = (page = 1, limit = 10) => {
+    return useQuery({
+        queryKey: ["user-orders", page, limit],
+        queryFn: () => getUserOrders({ page, limit }),
+        gcTime: 0,
+        staleTime: 0,
+        refetchOnMount: "always",
     });
 };
 

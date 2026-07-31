@@ -128,10 +128,13 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
             <div className="bg-gray-50 p-4 rounded-md border">
               <h3 className="font-semibold text-base mb-2">Customer Details</h3>
               <p>
-                <strong>Name:</strong> {order.userId?.name}
+                <strong>Name:</strong> {order.userId?.name || "N/A"}
               </p>
               <p>
-                <strong>Email:</strong> {order.userId?.email}
+                <strong>Email:</strong> {order.userId?.email || "N/A"}
+              </p>
+              <p>
+                <strong>Phone:</strong> {order.userId?.phone || "N/A"}
               </p>
             </div>
 

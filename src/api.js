@@ -111,7 +111,7 @@ export const syncInstagramAllComments = async () => {
 };
 
 export const updateProfile = async (payload) => {
-    const { data } = await axios.put("/api/user/update-profile", payload);
+    const { data } = await axios.patch("/api/user/profile", payload);
     return data;
 };
 
@@ -187,3 +187,67 @@ export const getProducts = async ({
 
     return data;
 };
+
+export const getUserOrders = async ({ page = 1, limit = 10 }) => {
+    const { data } = await axios.get("/api/user/orders", {
+        params: {
+            page,
+            limit,
+        },
+    });
+
+    return data;
+};
+
+const BASE = "/api/collection";
+
+export const getCollections = async ({
+    page = 1,
+    limit = 10,
+}) => {
+    const { data } = await axios.get(BASE, {
+        params: {
+            page,
+            limit,
+        },
+    });
+
+    return data;
+};
+
+export const getCollectionById = async (id) => {
+    const { data } = await axios.get(`${BASE}/${id}`);
+    return data;
+};
+
+export const createCollection = async (payload) => {
+    const { data } = await axios.post(BASE, payload);
+    return data;
+};
+
+export const updateCollection = async ({ id, ...payload }) => {
+    const { data } = await axios.put(`${BASE}/${id}`, payload);
+    return data;
+};
+
+export const deleteCollection = async (id) => {
+    const { data } = await axios.delete(`${BASE}/${id}`);
+    return data;
+};
+
+export const addProductsToCollection = async ({ id, productIds }) => {
+    const { data } = await axios.post(`${BASE}/${id}/products`, { productIds });
+    return data;
+};
+
+export const removeProductFromCollection = async ({ id, productId }) => {
+    const { data } = await axios.delete(`${BASE}/${id}/products/${productId}`);
+    return data;
+};
+
+export const getProductsForCollection = async () => {
+    const { data } = await axios.get(`${BASE}/products/all`);
+    return data;
+};
+
+

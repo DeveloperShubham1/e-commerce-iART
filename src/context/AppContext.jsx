@@ -171,6 +171,7 @@ export const AppContextProvider = ({ children }) => {
         item: {
           productId,
           variantId,
+          merchantId,
           size,
           quantity,
         },
