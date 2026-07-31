@@ -75,7 +75,7 @@ import { v4 as uuidv4 } from "uuid";
 export const addToGuestCart = async (req, res) => {
   try {
     const { guestId, item } = req.body;
-    const { productId, variantId, size, quantity = 1 } = item;
+    const { productId, merchantId, variantId, size, quantity = 1 } = item;
 
     if (!productId || !variantId || !size) {
       return res
@@ -120,7 +120,7 @@ export const addToGuestCart = async (req, res) => {
       (i) =>
         i.productId.equals(productId) &&
         i.variantId.equals(variantId) &&
-        i.size === size
+        i.size === size,
     );
 
     if (existingItem) {
@@ -129,6 +129,7 @@ export const addToGuestCart = async (req, res) => {
       cart.cartItems.push({
         productId,
         variantId,
+        merchantId,
         size,
         quantity,
         price: sizeData.price, // ✅ REQUIRED FIELD
@@ -165,7 +166,7 @@ export const mergeCart = async (req, res) => {
       (i) =>
         i.productId.toString() === guestItem.productId.toString() &&
         i.variantId.toString() === guestItem.variantId.toString() &&
-        i.size === guestItem.size
+        i.size === guestItem.size,
     );
 
     if (userItem) {
@@ -216,7 +217,7 @@ export const updateGuestCartItem = async (req, res) => {
       (i) =>
         i.productId.equals(productId) &&
         i.variantId.equals(variantId) &&
-        i.size === size
+        i.size === size,
     );
 
     if (!cartItem)
@@ -288,7 +289,7 @@ export const removeFromGuestCart = async (req, res) => {
           i.productId.equals(productId) &&
           i.variantId.equals(variantId) &&
           i.size === size
-        )
+        ),
     );
 
     await cart.save();

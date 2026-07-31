@@ -11,7 +11,7 @@ import { getCategories } from "../controllers/categoryController.js";
 import {
   getOrdersByUserId,
   placeOrder,
-  placeUpiOrder
+  placeUpiOrder,
 } from "../controllers/orderController.js";
 import { productListByUser } from "../controllers/productController.js";
 import {
@@ -23,7 +23,27 @@ import {
   completeGuestProfile,
 } from "../controllers/authController.js";
 
+import {
+  sendOtp,
+  verifyOtp,
+  resendOtp,
+  updateProfile,
+  verifyPhoneUpdate,
+  resendPhoneUpdateOtp,
+} from "../controllers/userOtpController.js";
+
 const userRouter = express.Router();
+
+// otp route
+userRouter.post("/otp/send", sendOtp);
+userRouter.post("/otp/verify", verifyOtp);
+userRouter.post("/otp/resend", resendOtp);
+
+// update profile
+
+userRouter.patch("/profile", authUser, updateProfile);
+userRouter.post("/verify-phone-update", authUser, verifyPhoneUpdate);
+userRouter.post("/resend-phone-update-otp", authUser, resendPhoneUpdateOtp);
 
 userRouter.post("/register", register);
 userRouter.post("/login", login);

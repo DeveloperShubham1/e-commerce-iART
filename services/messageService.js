@@ -35,9 +35,14 @@ function buildProductUrl(product, merchantConfig) {
   );
 }
 
+// function buildDMProductUrl(baseUrl, igToken) {
+//   const sep = baseUrl.includes("?") ? "&" : "?";
+//   return `${baseUrl}${sep}source=ig_dm&token=${igToken}`;
+// }
+
 function buildDMProductUrl(baseUrl, igToken) {
   const sep = baseUrl.includes("?") ? "&" : "?";
-  return `${baseUrl}${sep}source=ig_dm&token=${igToken}`;
+  return `${baseUrl}`;
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────

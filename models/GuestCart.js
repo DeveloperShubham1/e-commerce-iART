@@ -15,6 +15,11 @@ const guestCartSchema = new mongoose.Schema(
           required: true,
         },
 
+        merchantId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Merchants",
+        },
+
         variantId: {
           type: mongoose.Schema.Types.ObjectId,
           required: true,
@@ -42,7 +47,7 @@ const guestCartSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model("GuestCart", guestCartSchema);

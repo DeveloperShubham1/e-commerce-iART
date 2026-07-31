@@ -993,7 +993,7 @@ export const getAllOrdersByMerchant = async (req, res) => {
     const orders = await Order.find(query)
       .populate("items.productId")
       .populate("address")
-      .populate("userId", "name email")
+      .populate("userId", "name email phone")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

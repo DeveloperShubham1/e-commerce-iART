@@ -2,9 +2,10 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    password: { type: String, required: true },
+    name: { type: String },
+    email: { type: String },
+    phone: { type: String },
+    password: { type: String },
     instagramId: { type: String, unique: true, sparse: true },
     isGuest: { type: Boolean, default: false },
     merchantData: {
