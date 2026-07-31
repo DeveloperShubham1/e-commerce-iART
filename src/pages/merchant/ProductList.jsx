@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useAppContext } from "../../context/AppContext";
 import { toast } from "react-toastify";
+import { Link as LinkIcon } from "lucide-react";
 import EditProductModal from "../../components/merchant/EditProductModal";
 import ConfirmModal from "../../functions/ConfirmModal";
 import ProductCardShimmer from "../../components/merchant/skeletons/ProductCardShimmer";
@@ -86,7 +87,7 @@ const ProductList = () => {
         }
       );
 
-      if (data.success) { 
+      if (data.success) {
         setProducts(data.products || []);
         setTotalPages(data.totalPages || 1);
       } else {
@@ -212,6 +213,22 @@ const ProductList = () => {
     return { colors: colors.length, totalSizes };
   };
 
+  const handleCopyLink = async (product) => {
+    const category = product.categoryId?.name
+      ?.toLowerCase()
+      .replace(/\s+/g, "-"); // Suit -> suit, Men's Wear -> men's-wear
+
+    const productUrl = `${import.meta.env.VITE_USER_FRONTEND_URL}/products/${category}/${product._id}`;
+
+    try {
+      await navigator.clipboard.writeText(productUrl);
+      toast.success("Product link copied!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to copy link");
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto pb-10 bg-gray-50 ">
       <div className="">
@@ -267,7 +284,7 @@ const ProductList = () => {
               const { colors, totalSizes } = getVariantInfo(product);
               const firstImage =
                 product.variants?.[0]?.images?.[
-                  product?.variants?.[0]?.thumbnailIndex
+                product?.variants?.[0]?.thumbnailIndex
                 ] || "/no-image.png";
 
               return (
@@ -281,6 +298,17 @@ const ProductList = () => {
                       alt={product.name}
                       className="w-full h-full object-cover"
                     />
+
+                    {/* Status Badge */}
+                    <span
+                      className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-medium ${product.isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-600"
+                        }`}
+                    >
+                      {product.isActive ? "Active" : "Inactive"}
+                    </span>
+
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3">
                       <button
                         onClick={() => setEditProduct(product)}
@@ -288,6 +316,7 @@ const ProductList = () => {
                       >
                         Edit
                       </button>
+
                       <button
                         onClick={() => handleDelete(product._id)}
                         className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700"
@@ -301,9 +330,9 @@ const ProductList = () => {
                     <h3 className="font-semibold text-gray-900 truncate">
                       {product.name}
                     </h3>
+
                     <p className="text-sm text-gray-500 mt-1">
-                      SKU:{" "}
-                      <span className="font-medium">{product.sku || "—"}</span>
+                      SKU: <span className="font-medium">{product.sku || "—"}</span>
                     </p>
 
                     <div className="flex items-center gap-4 mt-3 text-xs text-gray-600">
@@ -319,6 +348,7 @@ const ProductList = () => {
                     <div className="flex items-center justify-between mt-4">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500">Status</span>
+
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
@@ -328,20 +358,18 @@ const ProductList = () => {
                             }
                             className="sr-only peer"
                           />
-                          <div className="w-10 h-5 bg-gray-300 rounded-full peer peer-checked:bg-green-600 transition"></div>
-                          <div className="dot absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition peer-checked:translate-x-5"></div>
+                          <div className="w-10 h-5 bg-gray-300 rounded-full peer-checked:bg-green-600 transition"></div>
+                          <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
                         </label>
                       </div>
 
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          product.isActive
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
+                      <button
+                        onClick={() => handleCopyLink(product)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-cyan-700 bg-cyan-50 rounded-md hover:bg-cyan-100 transition"
                       >
-                        {product.isActive ? "Active" : "Inactive"}
-                      </span>
+                        <LinkIcon size={15} />
+                        Copy Link
+                      </button>
                     </div>
                   </div>
                 </div>
