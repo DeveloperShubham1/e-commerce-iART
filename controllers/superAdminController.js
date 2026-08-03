@@ -1042,11 +1042,11 @@ export const getAllCustomers = async (req, res) => {
                 email: user.email,
                 isGuest: user.isGuest,
 
-                merchantCount: user.merchantData.length,
+                merchantCount: user?.merchantData?.length,
 
-                merchant: user.merchantData[0]?.merchantId,
+                merchant: user?.merchantData[0]?.merchantId,
 
-                cartItems: user.cartItems.length,
+                cartItems: user?.cartItems?.length,
 
                 totalOrders: stats.totalOrders || 0,
 

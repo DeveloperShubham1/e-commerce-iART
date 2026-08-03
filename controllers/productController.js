@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Subcategory from "../models/Subcategory.js";
 import Category from "../models/Category.js";
+import Collection from "../models/Collection.js";
+import CollectionAssign from "../models/CollectionAssign.js";
 import axios from "axios";
 
 // ADD PRODUCTS
@@ -121,9 +123,8 @@ export const addProduct = async (req, res) => {
       ) {
         return res.status(400).json({
           success: false,
-          message: `Variant ${i + 1}: thumbnailIndex must be between 0 and ${
-            v.images.length - 1
-          }`,
+          message: `Variant ${i + 1}: thumbnailIndex must be between 0 and ${v.images.length - 1
+            }`,
         });
       }
 
@@ -367,9 +368,8 @@ export const updateProduct = async (req, res) => {
         ) {
           return res.status(400).json({
             success: false,
-            message: `Variant ${i + 1}: thumbnailIndex must be between 0 and ${
-              v.images.length - 1
-            }`,
+            message: `Variant ${i + 1}: thumbnailIndex must be between 0 and ${v.images.length - 1
+              }`,
           });
         }
 
@@ -453,6 +453,7 @@ export const productList = async (req, res) => {
     /* ------------------ FILTER ------------------ */
     const filter = {
       merchantId: new mongoose.Types.ObjectId(req.merchant._id),
+      isDeleted: false,
     };
 
     if (search.trim()) {
@@ -566,6 +567,7 @@ export const productById = async (req, res) => {
 
     const product = await Product.findOne({
       _id: id,
+      isDeleted: false,
     })
       .populate("categoryId", "name _id")
       .populate("subcategoryId", "name _id");
@@ -620,7 +622,8 @@ export const deleteProduct = async (req, res) => {
     }
 
     // Delete the Product itself
-    await product.deleteOne();
+    product.isDeleted = true;
+    await product.save();
 
     res.status(200).json({
       success: true,
@@ -641,6 +644,7 @@ export const productListByUser = async (req, res) => {
       isActive,
       categoryId,
       subcategoryId,
+      collectionId,
       size,
     } = req.query;
 
@@ -653,7 +657,7 @@ export const productListByUser = async (req, res) => {
           "Merchant ID missing — either login as merchant or pass merchantId in query/body",
       });
     }
-
+    let collection = null;
     /* ------------------ FILTER BUILD ------------------ */
     const filter = {
       merchantId: new mongoose.Types.ObjectId(merchantId), // ✅ IMPORTANT
@@ -675,6 +679,22 @@ export const productListByUser = async (req, res) => {
       filter.subcategoryId = new mongoose.Types.ObjectId(subcategoryId);
 
     if (size) filter["variants.sizes.size"] = size.toUpperCase(); // ✅ FIXED PATH
+
+    if (collectionId) {
+      collection = await Collection.findOne({
+        _id: collectionId,
+        merchantId,
+      })
+        .select("_id name")
+        .lean();
+
+      const productIds = await CollectionAssign.distinct("product", {
+        merchantId: new mongoose.Types.ObjectId(merchantId),
+        collection: new mongoose.Types.ObjectId(collectionId),
+      });
+
+      filter._id = { $in: productIds };
+    }
 
     /* ------------------ PAGINATION ------------------ */
     const skip = (Number(page) - 1) * Number(limit);
@@ -749,6 +769,7 @@ export const productListByUser = async (req, res) => {
 
     return res.json({
       success: true,
+      collection,
       products,
       total,
       page: Number(page),

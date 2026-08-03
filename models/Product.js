@@ -50,6 +50,8 @@ const ProductSchema = new mongoose.Schema(
 
     isActive: { type: Boolean, default: true },
     isSeprate: { type: Boolean, default: false },
+
+    isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

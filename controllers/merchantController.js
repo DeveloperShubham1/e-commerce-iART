@@ -1542,7 +1542,7 @@ export const getHomeData = async (req, res) => {
     const merchantObjectId = new mongoose.Types.ObjectId(merchantId);
 
     // 1. new_products: latest 10 products
-    const new_products = await Product.find({ merchantId, isActive: true })
+    const new_products = await Product.find({ merchantId, isActive: true, isDeleted: false })
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
@@ -1550,9 +1550,9 @@ export const getHomeData = async (req, res) => {
     // 2. categories: all categories
     const categoriesData = await Category.find({ merchantId })
       .populate("merchantId", "MerchantName email")
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .lean();
-    
+
     const categories = categoriesData.map((cat) => ({
       ...cat,
       image: cat.image || { url: null, key: null },
@@ -1562,13 +1562,24 @@ export const getHomeData = async (req, res) => {
     const collectionsData = await Collection.find({ merchantId }).lean();
     const collections = await Promise.all(
       collectionsData.map(async (col) => {
-        const assignments = await CollectionAssign.find({ merchantId, collection: col._id })
-          .populate("product")
+        const assignments = await CollectionAssign.find({
+          merchantId,
+          collection: col._id,
+        })
+          .populate({
+            path: "product",
+            match: {
+              isActive: true,
+              isDeleted: false,
+            },
+          })
           .lean();
-        
+
         return {
           ...col,
-          products: assignments.map((a) => a.product).filter((p) => p != null && p.isActive),
+          products: assignments
+            .map((a) => a.product)
+            .filter(Boolean),
         };
       })
     );
@@ -1586,15 +1597,15 @@ export const getHomeData = async (req, res) => {
     if (topProducts.length > 0) {
       const productIds = topProducts.map((p) => p._id);
       // fetch products and sort them according to topProducts order
-      const productsData = await Product.find({ _id: { $in: productIds }, merchantId, isActive: true }).lean();
-      
+      const productsData = await Product.find({ _id: { $in: productIds }, merchantId, isActive: true, isDeleted: false }).lean();
+
       best_seller = topProducts
         .map((tp) => productsData.find((p) => p._id.toString() === tp._id.toString()))
         .filter((p) => p != null);
     } else {
       // random 10 products if no orders
       best_seller = await Product.aggregate([
-        { $match: { merchantId: merchantObjectId, isActive: true } },
+        { $match: { merchantId: merchantObjectId, isActive: true, isDeleted: false } },
         { $sample: { size: 10 } },
       ]);
     }
