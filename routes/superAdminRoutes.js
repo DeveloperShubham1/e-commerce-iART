@@ -15,7 +15,9 @@ import {
     toggleMerchantSubscription,
     createMerchant,
     getMerchantList,
-    updateMerchant
+    updateMerchant,
+    getAllCustomers,
+    getAllOrders
 } from "../controllers/superAdminController.js";
 
 import authSuperAdmin from "../middlewares/superAdmin.js";
@@ -35,6 +37,8 @@ superAdminRouter.get("/customers", authSuperAdmin, getCustomersList);
 superAdminRouter.get("/merchants/:id", authSuperAdmin, getMerchantDetail);
 superAdminRouter.get("/merchants/revenue/top", authSuperAdmin, getMerchantsRevenue);
 superAdminRouter.get("/customers/:id", authSuperAdmin, getCustomerDetail);
+superAdminRouter.get("/allCustomers", authSuperAdmin, getAllCustomers);
+superAdminRouter.get("/allOrders", authSuperAdmin, getAllOrders);
 
 superAdminRouter.put("/profile", authSuperAdmin, updateProfile);
 superAdminRouter.put("/merchants/:id", authSuperAdmin, updateMerchant);

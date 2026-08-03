@@ -2,6 +2,12 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import Merchant from "../models/Merchants.js";
 import MerchantWebsiteSettings from "../models/MerchantSettings.js";
+import Product from "../models/Product.js";
+import Category from "../models/Category.js";
+import Collection from "../models/Collection.js";
+import CollectionAssign from "../models/CollectionAssign.js";
+import Order from "../models/Order.js";
+import mongoose from "mongoose";
 import multer from "multer";
 import multerS3 from "multer-s3";
 import s3 from "../configs/s3.js"; // your S3 instance
@@ -1511,6 +1517,120 @@ export const getPaymentConfigforUser = async (req, res) => {
       success: false,
       message: "Something went wrong.",
       error: error.message,
+    });
+  }
+};
+
+
+export const getHomeData = async (req, res) => {
+  try {
+    let merchantId;
+
+    if (req.user?._id || req.user?.merchantId) {
+      merchantId = req.user.merchantId;
+    } else if (req.query.merchantId || req.body.merchantId) {
+      merchantId = req.query.merchantId || req.body.merchantId;
+    }
+
+    if (!merchantId) {
+      return res.status(400).json({
+        success: false,
+        message: "Merchant ID missing",
+      });
+    }
+
+    const merchantObjectId = new mongoose.Types.ObjectId(merchantId);
+
+    // 1. new_products: latest 10 products
+    const new_products = await Product.find({ merchantId, isActive: true })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    // 2. categories: all categories
+    const categoriesData = await Category.find({ merchantId })
+      .populate("merchantId", "MerchantName email")
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    const categories = categoriesData.map((cat) => ({
+      ...cat,
+      image: cat.image || { url: null, key: null },
+    }));
+
+    // 3. collections: collection names and their products
+    const collectionsData = await Collection.find({ merchantId }).lean();
+    const collections = await Promise.all(
+      collectionsData.map(async (col) => {
+        const assignments = await CollectionAssign.find({ merchantId, collection: col._id })
+          .populate("product")
+          .lean();
+        
+        return {
+          ...col,
+          products: assignments.map((a) => a.product).filter((p) => p != null && p.isActive),
+        };
+      })
+    );
+
+    // 4. best_seller: top 10 products ordered the most
+    let best_seller = [];
+    const topProducts = await Order.aggregate([
+      { $match: { merchantId: merchantObjectId } },
+      { $unwind: "$items" },
+      { $group: { _id: "$items.productId", count: { $sum: "$items.quantity" } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
+    ]);
+
+    if (topProducts.length > 0) {
+      const productIds = topProducts.map((p) => p._id);
+      // fetch products and sort them according to topProducts order
+      const productsData = await Product.find({ _id: { $in: productIds }, merchantId, isActive: true }).lean();
+      
+      best_seller = topProducts
+        .map((tp) => productsData.find((p) => p._id.toString() === tp._id.toString()))
+        .filter((p) => p != null);
+    } else {
+      // random 10 products if no orders
+      best_seller = await Product.aggregate([
+        { $match: { merchantId: merchantObjectId, isActive: true } },
+        { $sample: { size: 10 } },
+      ]);
+    }
+
+    /* ------------------ VARIANT SORT ------------------ */
+    const sortVariants = (products) => {
+      products.forEach((product) => {
+        if (product.variants?.length) {
+          product.variants.sort((a, b) => {
+            if (a.isTrending === b.isTrending) {
+              return (a.trendingOrder ?? 999) - (b.trendingOrder ?? 999);
+            }
+            return b.isTrending - a.isTrending;
+          });
+        }
+      });
+    };
+
+    sortVariants(new_products);
+    sortVariants(best_seller);
+    collections.forEach((col) => sortVariants(col.products));
+
+    res.status(200).json({
+      success: true,
+      new_products,
+      categories,
+      collections,
+      best_seller,
+      merchantUsed: merchantId,
+      message: "Home data fetched successfully",
+    });
+  } catch (error) {
+    console.error("Get home data error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Server error while fetching home data",
     });
   }
 };
