@@ -617,6 +617,7 @@ const Cart = () => {
     }
   };
 
+
   if (products.length === 0 || cartItems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">

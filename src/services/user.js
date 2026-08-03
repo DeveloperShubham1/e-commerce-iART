@@ -6,7 +6,8 @@ import {
     getProductById,
     getProductsByCategory,
     getProducts,
-    getUserOrders
+    getUserOrders,
+    getDashboardData
 } from "../api";
 import { toast } from "react-toastify";
 
@@ -65,6 +66,13 @@ export const useUserOrders = (page = 1, limit = 10) => {
         gcTime: 0,
         staleTime: 0,
         refetchOnMount: "always",
+    });
+};
+
+export const useDashboardData = () => {
+    return useQuery({
+        queryKey: ["dashboard-data"],
+        queryFn: getDashboardData,
     });
 };
 

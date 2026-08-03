@@ -15,7 +15,7 @@ const BottomBanner = () => {
   return (
     <section
       className={`relative mt-24 w-full overflow-hidden ${!desktopBanner && !mobileBanner ? gradientStyle : ""
-        } h-[500px] sm:h-[480px] md:h-[450px] lg:h-[500px]`}
+        } h-[500px] sm:h-[480px] md:h-[450px] lg:h-[600px]`}
     >
       {/* Desktop Banner */}
       {desktopBanner && (

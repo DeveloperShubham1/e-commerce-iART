@@ -7,32 +7,18 @@ const ProductCard = ({ item }) => {
 
   const { currency, navigate } = useAppContext();
 
-  const {
-    productId,
-    name,
-    brand,
-    categoryId,
-    rating = 4,
-    variant,
-  } = item;
+  const { productId, name, categoryId, rating = 4, variant } = item;
 
   if (!variant) return null;
 
-  // First image
   const firstImage =
-    variant.images?.[variant.thumbnailIndex || 0] ||
-    variant.images?.[0] ||
-    "";
+    variant.images?.[variant.thumbnailIndex || 0] || variant.images?.[0] || "";
 
-  // Prices
   const prices =
     variant.sizes?.map((size) => {
       const discount = size.offerPrice || 0;
-
       const discountedPrice =
-        discount > 0
-          ? size.price - (size.price * discount) / 100
-          : size.price;
+        discount > 0 ? size.price - (size.price * discount) / 100 : size.price;
 
       return {
         regularPrice: size.price,
@@ -43,17 +29,10 @@ const ProductCard = ({ item }) => {
 
   if (!prices.length) return null;
 
-  const minRegularPrice = Math.min(
-    ...prices.map((p) => p.regularPrice)
-  );
+  const minOfferPrice = Math.min(...prices.map((p) => p.offerPrice));
 
-  const minOfferPrice = Math.min(
-    ...prices.map((p) => p.offerPrice)
-  );
-
-  const maxDiscount = Math.max(
-    ...prices.map((p) => p.discount)
-  );
+  // Placeholder review count derived from rating so it always renders something sensible
+  const reviewCount = item.reviewCount ?? Math.round(rating * 20);
 
   return (
     <div
@@ -63,16 +42,10 @@ const ProductCard = ({ item }) => {
         );
         window.scrollTo(0, 0);
       }}
-      className="group cursor-pointer bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all duration-300"
+      className="group cursor-pointer w-full min-w-0"
     >
       {/* Image */}
-      <div className="relative w-full h-72 bg-slate-100 overflow-hidden">
-        {maxDiscount > 0 && (
-          <span className="absolute top-3 right-3 z-10 bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-            {maxDiscount}% OFF
-          </span>
-        )}
-
+      <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] bg-slate-100 rounded-lg overflow-hidden">
         <img
           src={firstImage}
           alt={name}
@@ -81,65 +54,33 @@ const ProductCard = ({ item }) => {
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        <p className="text-xs uppercase tracking-wider text-slate-400">
-          {brand}
-        </p>
-
-        <h3 className="text-sm font-semibold text-slate-800 line-clamp-1 mt-1">
+      <div className="pt-3">
+        <h3 className="text-[11px] sm:text-xs md:text-sm font-semibold uppercase tracking-wide text-slate-800 line-clamp-1">
           {name}
         </h3>
 
         {/* Rating */}
-        <div className="flex items-center gap-1 mt-2">
+        <div className="flex items-center gap-1 mt-1.5">
           {Array(5)
             .fill("")
             .map((_, i) => (
               <img
                 key={i}
-                src={i < rating ? assets.star_icon : assets.star_dull_icon}
+                src={i < Math.round(rating) ? assets.star_icon : assets.star_dull_icon}
                 className="w-3"
                 alt=""
               />
             ))}
-
-          <span className="text-xs text-slate-500">
-            ({rating})
+          <span className="text-xs text-slate-500 ml-1">
+            {reviewCount} reviews
           </span>
         </div>
 
         {/* Price */}
-        <div className="mt-3 flex items-center gap-2">
-          <span className="text-lg font-bold text-slate-900">
-            {currency}
-            {minOfferPrice.toFixed(0)}
-          </span>
-
-          {maxDiscount > 0 && (
-            <>
-              <span className="text-sm line-through text-slate-400">
-                {currency}
-                {minRegularPrice}
-              </span>
-
-             
-            </>
-          )}
-        </div>
-
-        {/* Color */}
-        {variant.color && (
-          <div className="flex items-center gap-2 mt-3">
-            <span
-              className="w-4 h-4 rounded-full border"
-              style={{ backgroundColor: variant.colorCode }}
-            />
-
-            <span className="text-xs text-slate-500">
-              {variant.color}
-            </span>
-          </div>
-        )}
+        <p className="mt-1.5 text-sm sm:text-base font-bold text-slate-900">
+          {currency}
+          {minOfferPrice.toFixed(0)}
+        </p>
       </div>
     </div>
   );

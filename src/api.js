@@ -171,6 +171,7 @@ export const getProducts = async ({
     limit = 10,
     categoryId,
     subcategoryId,
+    collectionId,
     size,
 }) => {
     const { data } = await axios.get("/api/user/product/list", {
@@ -181,6 +182,7 @@ export const getProducts = async ({
             limit,
             categoryId,
             subcategoryId,
+            collectionId,
             size,
         },
     });
@@ -247,6 +249,11 @@ export const removeProductFromCollection = async ({ id, productId }) => {
 
 export const getProductsForCollection = async () => {
     const { data } = await axios.get(`${BASE}/products/all`);
+    return data;
+};
+
+export const getDashboardData = async () => {
+    const { data } = await axios.get("/api/user/home");
     return data;
 };
 

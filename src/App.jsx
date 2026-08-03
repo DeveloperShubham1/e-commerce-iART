@@ -42,6 +42,7 @@ import { ShippingPolicy } from "./pages/Policies/ShippingPolicy";
 import { TermsPolicy } from "./pages/Policies/TermsPolicy";
 import { PrivacyPolicy } from "./pages/Policies/PrivacyPolicy";
 import CollectionsPage from "./pages/merchant/Collections/CollectionsPage";
+import ProductCollection from "./pages/Productcollection";
 
 
 const BUILD_TYPE = import.meta.env.VITE_BUILD_TYPE; // user | merchant
@@ -153,7 +154,7 @@ const App = () => {
                 <Route path="/" element={<Home />} />
                 <Route path="/products" element={<AllProducts />} />
                 <Route path="/products/:categoryId" element={<ProductCategory />} />
-
+                <Route path="/collections/:collectionId" element={<ProductCollection />} />
                 <Route
                   path="/products/:category/:id"
                   element={<ProductDetails />}

@@ -1,18 +1,12 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import { categories } from "../assets/assets";
 import ProductCard from "../components/ProductCard";
-import { getProducts } from "../api"
+import { getProducts } from "../api";
 
 const LIMIT = 10;
 
-// ---------------------------------------------------------------------------
-// Skeleton placeholder — mirrors ProductCard's rough shape (image + a couple
-// of text lines) so the grid doesn't visibly "jump" once real cards load in.
-// ---------------------------------------------------------------------------
 const ProductCardSkeleton = () => (
   <div className="animate-pulse">
     <div className="w-full aspect-[3/4] bg-gray-200 rounded-lg" />
@@ -22,19 +16,14 @@ const ProductCardSkeleton = () => (
   </div>
 );
 
-const ProductCategory = () => {
-  const { categoryId } = useParams();
+const ProductCollection = () => {
+  const { collectionId } = useParams();
   const merchantId = import.meta.env.VITE_MERCHANT_ID;
 
   const sentinelRef = useRef(null);
 
   const [searchParams] = useSearchParams();
-
-  const name = searchParams.get("name")
-
-  const searchCategory = categories.find(
-    (item) => item.path.toLowerCase() === categoryId.toLowerCase()
-  );
+  const name = searchParams.get("name");
 
   /* ---------------- INFINITE QUERY ---------------- */
   const {
@@ -46,11 +35,11 @@ const ProductCategory = () => {
     isError,
     error,
   } = useInfiniteQuery({
-    queryKey: ["products", merchantId, "category", categoryId],
+    queryKey: ["products", merchantId, "collection", collectionId],
     queryFn: ({ pageParam = 1 }) =>
       getProducts({
         merchantId,
-        categoryId,
+        collectionId,
         page: pageParam,
         limit: LIMIT,
       }),
@@ -60,7 +49,7 @@ const ProductCategory = () => {
       }
       return undefined;
     },
-    enabled: !!merchantId && !!categoryId,
+    enabled: !!merchantId && !!collectionId,
   });
 
   /* ---------------- SURFACE FETCH ERRORS ---------------- */
@@ -137,22 +126,17 @@ const ProductCategory = () => {
     return finalList;
   }, [rawProducts]);
 
+
+
   return (
     <div className="mt-16 px-5 sm:px-10">
-
       {/* ===== Header ===== */}
       <div className="flex flex-col items-end w-max">
-        <p className="text-2xl font-medium uppercase">{variantList[0]?.categoryId?.name || name}</p>
+        <p className="text-2xl font-medium uppercase">
+          {data?.pages?.[0]?.collection?.name || name || "Collection"}
+        </p>
         <div className="w-16 h-0.5 bg-primary rounded-full" />
       </div>
-      {searchCategory && (
-        <div className="flex flex-col items-end w-max">
-          <p className="text-2xl font-medium uppercase">
-            {searchCategory.text}
-          </p>
-          <div className="w-16 h-0.5 bg-primary rounded-full"></div>
-        </div>
-      )}
 
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6 mt-6">
@@ -167,6 +151,8 @@ const ProductCategory = () => {
               <ProductCard
                 key={`${item.productId}-${item.variant?._id || index}`}
                 item={item}
+                showBadge
+                showWishlist
               />
             ))}
 
@@ -183,7 +169,7 @@ const ProductCategory = () => {
       ) : (
         <div className="flex items-center justify-center h-[60vh]">
           <p className="text-2xl font-medium text-primary">
-            No products found in this category.
+            No products found in this collection.
           </p>
         </div>
       )}
@@ -191,4 +177,4 @@ const ProductCategory = () => {
   );
 };
 
-export default ProductCategory;
+export default ProductCollection;
