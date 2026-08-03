@@ -8,6 +8,8 @@ import {
   TrendingUp,
   TrendingDown,
   Plus,
+  UserX,
+  UserRoundCheck
 } from "lucide-react";
 import { Card, Badge, Button, Skeleton, SkeletonCard, StatCard } from "../components/ui";
 import { useDispatch, useSelector } from "react-redux";
@@ -29,8 +31,10 @@ const Dashboard = () => {
 
   const totalMerchant = stats.totalMerchants
   const subscribed = stats.subscribedMerchants
+  const unSubscribed = stats.unSubscribedMerchants
   const customer = stats.totalCustomers
   const order = stats.totalOrders;
+
 
   const merchants = dashboardData?.merchants || [];
 
@@ -47,7 +51,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {loading ? (
           <>
             <SkeletonCard />
@@ -58,7 +62,8 @@ const Dashboard = () => {
         ) : (
           <>
             <StatCard label="Total Merchants" value={totalMerchant} icon={Store} trend="+12.5%" trendUp color="bg-primary-100 text-primary-600" />
-            <StatCard label="Subscribed" value={subscribed} icon={Package} trend="+8.2%" trendUp color="bg-accent-100 text-accent-600" />
+            <StatCard label="Subscribed" value={subscribed} icon={UserRoundCheck} trend="+8.2%" trendUp color="bg-accent-100 text-accent-600" />
+            <StatCard label="Unsubscribed" value={unSubscribed} icon={UserX} trend="+8.2%" trendUp color="bg-red-100 text-red-600 " />
             <StatCard label="Total Customers" value={customer} icon={Users} trend="+5.1%" trendUp color="bg-success-100 text-success-600" />
             <StatCard label="Total Orders" value={order} icon={ShoppingCart} trend="-2.3%" trendUp={false} color="bg-warning-100 text-warning-600" />
           </>
@@ -105,7 +110,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <Badge variant={m.isSubscribed ? "success" : "neutral"}>
-                  {m.isSubscribed ? "Subscribed" : "Free"}
+                  {m.isSubscribed ? "Subscribed" : "Unsubscribed"}
                 </Badge>
               </div>
             ))}
