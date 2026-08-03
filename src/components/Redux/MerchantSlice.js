@@ -12,6 +12,8 @@ import {
   getOrdersListApi,
   getCustomersListApi,
   getCustomerDetailApi,
+  getAllCustomers,
+  getAllOrders,
 } from "../../api/merchant.api"; // adjust filename/path to match yours
 
 // ----------------------------- thunks -----------------------------
@@ -137,6 +139,28 @@ export const fetchCustomerDetail = createAsyncThunk(
   },
 );
 
+export const fetchAllCustomers = createAsyncThunk(
+  "merchant/fetchAllCustomers",
+  async (params, { rejectWithValue }) => {
+    try {
+      return await getAllCustomers(params);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+)
+
+export const fetchAllOrders = createAsyncThunk(
+  "merchant/fetchAllOrders",
+  async (params, { rejectWithValue }) => {
+    try {
+      return await getAllOrders(params);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+)
+
 // ----------------------------- slice -----------------------------
 
 const initialState = {
@@ -158,6 +182,10 @@ const initialState = {
 
   customers: { data: [], pagination: null, loading: false, error: null },
   customerDetail: { data: null, loading: false, error: null },
+
+  allCustomers: { data: [], pagination: null, loading: false, error: null },
+
+  allOrders: { data: [], pagination: null, loading: false, error: null },
 };
 
 const merchantSlice = createSlice({
@@ -345,7 +373,39 @@ const merchantSlice = createSlice({
         state.customerDetail.loading = false;
         state.customerDetail.error = action.payload;
         toast.error(action.payload || "Failed to load customer");
-      });
+      })
+
+      // ------------------------- all customers -------------------------
+      .addCase(fetchAllCustomers.pending, (state) => {
+        state.allCustomers.loading = true;
+        state.allCustomers.error = null;
+      })
+      .addCase(fetchAllCustomers.fulfilled, (state, action) => {
+        state.allCustomers.loading = false;
+        state.allCustomers.data = action.payload?.customers ?? [];
+        state.allCustomers.pagination = action.payload?.pagination ?? null;
+      })
+      .addCase(fetchAllCustomers.rejected, (state, action) => {
+        state.allCustomers.loading = false;
+        state.allCustomers.error = action.payload;
+        toast.error(action.payload || "Failed to load customers");
+      })
+
+      // ------------------------- all orders -------------------------
+      .addCase(fetchAllOrders.pending, (state) => {
+        state.allOrders.loading = true;
+        state.allOrders.error = null;
+      })
+      .addCase(fetchAllOrders.fulfilled, (state, action) => {
+        state.allOrders.loading = false;
+        state.allOrders.data = action.payload?.orders ?? [];
+        state.allOrders.pagination = action.payload?.pagination ?? null;
+      })
+      .addCase(fetchAllOrders.rejected, (state, action) => {
+        state.allOrders.loading = false;
+        state.allOrders.error = action.payload;
+        toast.error(action.payload || "Failed to load orders");
+      })
   },
 });
 
@@ -359,5 +419,7 @@ export const selectSalesSummary = (state) => state.merchant.salesSummary;
 export const selectOrders = (state) => state.merchant.orders;
 export const selectCustomers = (state) => state.merchant.customers;
 export const selectCustomerDetail = (state) => state.merchant.customerDetail;
+export const selectAllCustomers = (state) => state.merchant.allCustomers;
+export const selectAllOrders = (state) => state.merchant.allOrders;
 
 export default merchantSlice.reducer;

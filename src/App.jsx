@@ -14,6 +14,7 @@ import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound";
 import { MerchantOrders } from "./pages/MerchantOrders";
 import { MerchantCustomers } from "./pages/MerchantCustomers";
+import { AllCustomers } from "./pages/AllCustomers";
 
 const App = () => {
   return (
@@ -42,9 +43,9 @@ const App = () => {
           <Route path="/merchants" element={<Merchants />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/customers/:id" element={<MerchantCustomers />} />
-          <Route path="/products" element={<Placeholder title="Products" description="Manage all products across merchants" />} />
+          <Route path="/orders" element={<Placeholder title="Orders" description="Manage all orders across merchants" />} />
           <Route path="/orders/:id" element={<MerchantOrders />} />
-          <Route path="/settings" element={<Placeholder title="Settings" description="Configure platform-wide settings" />} />
+          <Route path="/customers" element={<AllCustomers />} />
         </Route>
 
         {/* Catch-all 404 */}

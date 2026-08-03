@@ -4,19 +4,17 @@ import {
   LayoutDashboard,
   Store,
   User,
-  Package,
   ShoppingCart,
-  Settings,
+  UserCheck,
   X,
-  ShieldCheck,
 } from "lucide-react";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/merchants", label: "Merchants", icon: Store },
+  { to: "/customers", label: "Customers", icon: UserCheck },
+  { to: "/orders", label: "Orders", icon: ShoppingCart },
   { to: "/profile", label: "My Profile", icon: User },
-  // { to: "/products", label: "Products", icon: Package },
-  // { to: "/orders", label: "Orders", icon: ShoppingCart },
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -70,7 +68,6 @@ const Sidebar = ({ isOpen, onClose }) => {
         </div>
         {/* Nav */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu</p>
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} className={linkClass} onClick={onClose}>
               <item.icon className="h-4.5 w-4.5 h-5 w-5" />

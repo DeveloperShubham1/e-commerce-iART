@@ -144,3 +144,45 @@ export const toggleMerchantSubscriptionApi = async (id) => {
     return handleError(error);
   }
 };
+
+export const getAllCustomers = async ({
+  page = 1,
+  per_page = 10,
+  search = "",
+  includeGuests = true,
+} = {}) => {
+  try {
+    const res = await http.get("/api/superadmin/allCustomers", {
+      params: {
+        page,
+        per_page,
+        search,
+        includeGuests: includeGuests ? "true" : "false",
+      },
+    });
+    return unwrap(res);
+  } catch (error) {
+    return handleError(error);
+  }
+};
+
+export const getAllOrders = async ({
+  page = 1,
+  per_page = 10,
+  search = "",
+  status
+} = {}) => {
+  try {
+    const res = await http.get("/api/superadmin/allOrders", {
+      params: {
+        page,
+        per_page,
+        search,
+        status
+      },
+    });
+    return unwrap(res);
+  } catch (error) {
+    return handleError(error);
+  }
+};

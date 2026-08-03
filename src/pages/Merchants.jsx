@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { Plus, Mail, Phone, MapPin, Link, Trash, TicketCheck, UserRound, CircleFadingPlus } from "lucide-react";
+import { Plus, Mail, Phone, MapPin, Link, Trash, TicketCheck, UserCheck, CircleFadingPlus } from "lucide-react";
 import {
   Card,
   Button,
@@ -288,7 +288,7 @@ const Merchants = () => {
             },
             {
               label: "Customer",
-              icon: UserRound,
+              icon: UserCheck,
               onClick: () => {
                 console.log("Customers", row);
                 navigate(`/customers/${row._id}`);
