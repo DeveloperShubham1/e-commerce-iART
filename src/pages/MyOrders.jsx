@@ -503,7 +503,7 @@ const MyOrders = () => {
                           </p>
                         </div>
                       ) : (
-                        <div className="text-sm text-gray-500 italic">
+                        <div className="text-sm text-gray-500">
                           Shipping address is not available.
                         </div>
                       )}

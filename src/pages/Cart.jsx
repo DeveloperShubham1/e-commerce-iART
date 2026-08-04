@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
 import { useAppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
 import axios from "axios";
 import PayNowButton from "../components/PayNowButton";
 import { usePaymentConfigForUser } from "../services/user";
+import { getProductById } from "../api"; // same fetch fn used by useProductById
 import {
   loadCheckoutState,
   saveCheckoutState,
@@ -282,7 +284,6 @@ const PaymentQrModal = ({
 const Cart = () => {
   const merchantId = import.meta.env.VITE_MERCHANT_ID;
   const {
-    products,
     currency,
     cartItems = [], // cartItems is now an array of objects
     removeFromCart,
@@ -298,7 +299,45 @@ const Cart = () => {
   const { data: paymentConfigData } = usePaymentConfigForUser(merchantId);
   const paymentConfig = paymentConfigData?.data;
 
-  const [cartArray, setCartArray] = useState([]);
+
+
+  // Unique product IDs currently in the cart — recomputed only when cartItems changes
+  const cartProductIds = useMemo(
+    () => [...new Set(cartItems.map((c) => c.productId))],
+    [cartItems]
+  );
+
+  // Fire one query per unique productId, sharing cache with useProductById
+  const productQueries = useQueries({
+    queries: cartProductIds.map((id) => ({
+      queryKey: ["product", id],
+      queryFn: () => getProductById(id),
+      enabled: !!id,
+    })),
+  });
+
+  const cartProductsLoading = productQueries.some((q) => q.isLoading);
+
+  const cartProducts = useMemo(
+    () =>
+      productQueries
+        .map((q) => q.data?.product || q.data) // adjust if getProductById's shape differs
+        .filter(Boolean),
+    [productQueries]
+  );
+
+  // Surface any per-product fetch errors
+  useEffect(() => {
+    const failed = productQueries.find((q) => q.isError);
+    if (failed) {
+      toast.error(
+        failed.error?.response?.data?.message ||
+        failed.error?.message ||
+        "Failed to load a cart item's product"
+      );
+    }
+  }, [productQueries]);
+
   const [addresses, setAddresses] = useState([]);
   const [showAddress, setShowAddress] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -426,10 +465,16 @@ const Cart = () => {
   }, [ctxAxios, user]);
 
   // Build enriched cart array with full product + variant details
-  const getCart = () => {
-    const temp = cartItems
+  // Build enriched cart array with full product + variant details
+  // Build enriched cart array with full product + variant details.
+  // This is derived data (not independent state), so it's a useMemo —
+  // never a useState set from a useEffect. That distinction matters:
+  // useMemo just recomputes on render, it can never trigger the
+  // "Maximum update depth exceeded" loop that a setState-in-effect can.
+  const cartArray = useMemo(() => {
+    return cartItems
       .map((cartItem) => {
-        const product = products.find((p) => p._id === cartItem.productId);
+        const product = cartProducts.find((p) => p._id === cartItem.productId);
         if (!product) return null;
 
         const variant = product.variants.find(
@@ -458,9 +503,7 @@ const Cart = () => {
         };
       })
       .filter(Boolean);
-
-    setCartArray(temp);
-  };
+  }, [cartItems, cartProducts]);
 
   const getUserAddress = async () => {
     try {
@@ -501,14 +544,7 @@ const Cart = () => {
     setShowAddress((prev) => !prev);
   };
 
-  // Recalculate cart when products or cartItems change
-  useEffect(() => {
-    if (products.length > 0 && cartItems.length > 0) {
-      getCart();
-    } else {
-      setCartArray([]);
-    }
-  }, [products, cartItems]);
+
 
   // Clear any saved payment method/screenshots if the cart becomes empty —
   // e.g. the user removed every item. Otherwise a stale "UPI screenshot
@@ -617,8 +653,7 @@ const Cart = () => {
     }
   };
 
-
-  if (products.length === 0 || cartItems.length === 0) {
+  if (cartItems.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
@@ -634,6 +669,14 @@ const Cart = () => {
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Continue Shopping
         </button>
+      </div>
+    );
+  }
+
+  if (cartProductsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
       </div>
     );
   }
@@ -861,7 +904,7 @@ const Cart = () => {
                       </p>
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-400 italic">
+                    <p className="text-xs text-slate-400">
                       No address selected
                     </p>
                   )}

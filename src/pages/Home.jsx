@@ -8,7 +8,9 @@ import NewsLetter from '../components/NewsLetter'
 import { useDashboardData } from '../services/user';
 
 const Home = () => {
-  const { data: homeData, isLoading: isLoadingHomeData } = useDashboardData();
+
+  const merchantId = import.meta.env.VITE_MERCHANT_ID;
+  const { data: homeData, isLoading: isLoadingHomeData } = useDashboardData(merchantId);
 
 
   return (

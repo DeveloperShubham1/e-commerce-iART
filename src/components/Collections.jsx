@@ -85,7 +85,7 @@ const Collections = ({ data: collections, loading }) => {
                 <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--color-primary)] tracking-tight">
                     Collections
                 </h2>
-                <p className="mt-2 text-sm sm:text-base font-semibold text-gray-800 italic">
+                <p className="mt-2 text-sm sm:text-base font-semibold text-gray-800 ">
                     Shop by style, silhouette, and mood – find your perfect vibe.
                 </p>
             </div>

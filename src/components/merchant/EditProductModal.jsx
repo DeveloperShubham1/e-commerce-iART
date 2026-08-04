@@ -162,8 +162,8 @@ const EditProductModal = ({
       return sum + kept + newCount;
     }, 0);
 
-    if (totalImages > 5) {
-      toast.error("Maximum 5 images allowed per product");
+    if (totalImages > 10) {
+      toast.error("Maximum 10 images allowed per product");
       return;
     }
 
@@ -492,7 +492,7 @@ const EditProductModal = ({
                 </button>
               </div>
               <p className="text-xs text-gray-600">
-                Max 5 images total across all variants
+                Max 10 images total across all variants
               </p>
             </div>
           </div>

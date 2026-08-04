@@ -373,7 +373,7 @@ export const AppContextProvider = ({ children }) => {
   useEffect(() => {
     if (BUILD_TYPE == "user") {
       fetchUser();
-      fetchProducts();
+      // fetchProducts();
       fetchSettings();
       // ✅ load guest cart ONLY when user not logged in
       if (!user) {

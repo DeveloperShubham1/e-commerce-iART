@@ -69,10 +69,10 @@ export const useUserOrders = (page = 1, limit = 10) => {
     });
 };
 
-export const useDashboardData = () => {
+export const useDashboardData = (merchantId) => {
     return useQuery({
-        queryKey: ["dashboard-data"],
-        queryFn: getDashboardData,
+        queryKey: ["dashboard-data", merchantId],
+        queryFn: () => getDashboardData(merchantId),
     });
 };
 

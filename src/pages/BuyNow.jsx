@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useAppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
 import { useLocation, useNavigate } from "react-router-dom";
 import PayNowButton from "../components/PayNowButton";
 import axios from "axios";
-import { usePaymentConfigForUser } from "../services/user";
+import { usePaymentConfigForUser, useProductById } from "../services/user";
 import {
   Check,
   ShieldCheck,
@@ -22,14 +22,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-// ---------------------------------------------------------------------------
-// Navigating to /add-address fully unmounts BuyNow, so local useState
-// (quantity, paymentOption, selectedAddress, uploaded screenshots) would
-// normally be lost when the user comes back via navigate(-1) — even though
-// location.state (and therefore the product itself) survives that trip.
-// We persist just the ephemeral selections to sessionStorage, keyed to this
-// specific product/variant/size, and restore them on mount.
-// ---------------------------------------------------------------------------
+
 const getBuyNowStorageKey = (state) =>
   state?.productId
     ? `buyNowState:${state.productId}:${state.variantId}:${state.size}`
@@ -318,7 +311,6 @@ const BuyNow = () => {
   const location = useLocation();
 
   const {
-    products,
     currency,
     axios: ctxAxios,
     user,
@@ -329,8 +321,19 @@ const BuyNow = () => {
   const { data: paymentConfigData } = usePaymentConfigForUser(merchantId);
   const paymentConfig = paymentConfigData?.data;
 
-  const [item, setItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
+  
+
+  // Fetch exactly the product this checkout is for — independent of
+  // whatever page the paginated catalog list has loaded in context.
+  const {
+    data: productData,
+    isLoading: productLoading,
+    isError: productIsError,
+    error: productError,
+  } = useProductById(location.state?.productId);
+
+  const product = productData?.product || productData; // adjust if the shape differs
 
   const [addresses, setAddresses] = useState([]);
   const [showAddress, setShowAddress] = useState(false);
@@ -468,6 +471,17 @@ const BuyNow = () => {
     selectedAddress,
   ]);
 
+  useEffect(() => {
+    if (productIsError) {
+      toast.error(
+        productError?.response?.data?.message ||
+        productError?.message ||
+        "Failed to load product details"
+      );
+      navigate("/products");
+    }
+  }, [productIsError, productError, navigate]);
+
   /* ---------------- FETCH ADDRESS ---------------- */
   const getUserAddress = async () => {
     try {
@@ -501,63 +515,81 @@ const BuyNow = () => {
     navigate("/add-address");
   };
 
-  /* ---------------- BUILD ITEM (LIKE CART) ---------------- */
+  /* ---------------- VALIDATE NAVIGATION STATE ---------------- */
   useEffect(() => {
     if (!location.state?.productId) {
       toast.error("Invalid product");
       navigate("/products");
-      return;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const { productId, variantId, size, qty = 1 } = location.state;
+  /* ---------------- INITIALIZE QUANTITY ONCE PRODUCT LOADS ---------------- */
+  // Runs once: prefer a restored sessionStorage quantity (already applied by
+  // the restore effect above) over the qty passed via navigation state.
+  const qtyInitialized = useRef(false);
+  useEffect(() => {
+    if (!product || qtyInitialized.current) return;
+    const saved = loadBuyNowState(storageKey);
+    if (!saved?.quantity) {
+      setQuantity(location.state?.qty || 1);
+    }
+    qtyInitialized.current = true;
+  }, [product, location.state, storageKey]);
 
-    const product = products.find((p) => p._id === productId);
-    if (!product) return;
+  /* ---------------- VALIDATE STOCK ---------------- */
+  useEffect(() => {
+    if (!product || !location.state) return;
+    const { variantId, size } = location.state;
 
-    const variant = product.variants.find((v) => v._id === variantId);
-    if (!variant) return;
+    const variant = product.variants?.find((v) => v._id === variantId);
+    const sizeObj = variant?.sizes?.find((s) => s.size === size);
 
-    const sizeObj = variant.sizes.find((s) => s.size === size);
-    if (!sizeObj || sizeObj.stock === 0) {
+    if (!variant || !sizeObj || sizeObj.stock === 0) {
       toast.error("Selected size out of stock");
       navigate("/products");
-      return;
     }
+  }, [product, location.state, navigate]);
+
+  /* ---------------- BUILD ITEM (DERIVED, NOT STATE) ---------------- */
+  // item is fully derived from product + location.state + quantity, so it's
+  // a useMemo — never a useState set from inside a useEffect. That's what
+  // caused the "Maximum update depth exceeded" loop in Cart.jsx; this
+  // structurally can't loop the same way.
+  const item = useMemo(() => {
+    if (!product || !location.state) return null;
+
+    const { variantId, size } = location.state;
+
+    const variant = product.variants?.find((v) => v._id === variantId);
+    if (!variant) return null;
+
+    const sizeObj = variant.sizes?.find((s) => s.size === size);
+    if (!sizeObj || sizeObj.stock === 0) return null;
 
     const discountedPrice =
       sizeObj.price - (sizeObj.price * sizeObj.offerPrice) / 100;
 
-    setItem({
+    return {
       ...product,
       variant,
       selectedSize: size,
       originalPrice: sizeObj.price,
       offerPercentage: sizeObj.offerPrice,
       discountedPrice,
-      quantity: qty,
-      itemTotal: discountedPrice * qty,
+      quantity,
+      itemTotal: discountedPrice * quantity,
       displayImage: variant.images[0],
-    });
-
-    setQuantity(qty);
-  }, [products, location.state, navigate]);
-
+    };
+  }, [product, location.state, quantity]);
   /* ---------------- UPDATE TOTAL ON QTY CHANGE ---------------- */
-  useEffect(() => {
-    if (item) {
-      setItem((prev) => ({
-        ...prev,
-        quantity,
-        itemTotal: prev.discountedPrice * quantity,
-      }));
-    }
-  }, [quantity]);
+
 
   useEffect(() => {
     if (user) getUserAddress();
   }, [user]);
 
-  if (!item) {
+  if (productLoading || !item) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -824,7 +856,7 @@ const BuyNow = () => {
                     onClick={() => setShowAddress(!showAddress)}
                     className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
                   >
-                   {showAddress ? "Close" : selectedAddress ? "Change" : "Add New Address"}
+                    {showAddress ? "Close" : selectedAddress ? "Change" : "Add New Address"}
                   </button>
                 </div>
 
@@ -848,7 +880,7 @@ const BuyNow = () => {
                       </p>
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-400 italic">
+                    <p className="text-xs text-slate-400 ">
                       No address selected
                     </p>
                   )}

@@ -252,8 +252,13 @@ export const getProductsForCollection = async () => {
     return data;
 };
 
-export const getDashboardData = async () => {
-    const { data } = await axios.get("/api/user/home");
+export const getDashboardData = async (merchantId) => {
+    const { data } = await axios.get("/api/user/home", {
+        params: {
+            merchantId,
+        },
+    });
+
     return data;
 };
 
