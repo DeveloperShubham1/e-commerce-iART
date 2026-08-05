@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
   },
-  { minimize: false },
+  { minimize: false, timestamps: true },
 );
 
 userSchema.index({ email: 1, "merchantData.merchantId": 1 }, { unique: true });

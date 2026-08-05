@@ -617,7 +617,7 @@ export const getOrdersList = async (req, res) => {
             .sort({ createdAt: -1 })
             .skip((page - 1) * perPage)
             .limit(perPage)
-            .populate("userId", "name email")
+            .populate("userId", "name email phone isGuest")
             .populate("merchantId", "MerchantName email")
             .lean();
 
@@ -674,6 +674,7 @@ export const getCustomersList = async (req, res) => {
             filter.$or = [
                 { name: { $regex: search, $options: "i" } },
                 { email: { $regex: search, $options: "i" } },
+                { phone: { $regex: search, $options: "i" } },
             ];
         }
 
@@ -690,6 +691,7 @@ export const getCustomersList = async (req, res) => {
             .select({
                 name: 1,
                 email: 1,
+                phone: 1,
                 isGuest: 1,
                 createdAt: 1,
                 merchantData: 1,
@@ -733,6 +735,7 @@ export const getCustomersList = async (req, res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
+                phone: user.phone,
                 isGuest: user.isGuest,
 
                 merchantCount: user.merchantData.length,
@@ -987,6 +990,7 @@ export const getAllCustomers = async (req, res) => {
             filter.$or = [
                 { name: { $regex: search, $options: "i" } },
                 { email: { $regex: search, $options: "i" } },
+                { phone: { $regex: search, $options: "i" } },
             ];
         }
 
@@ -998,6 +1002,7 @@ export const getAllCustomers = async (req, res) => {
                 name: 1,
                 email: 1,
                 isGuest: 1,
+                phone: 1,
                 createdAt: 1,
                 merchantData: 1,
                 cartItems: 1,
@@ -1040,6 +1045,7 @@ export const getAllCustomers = async (req, res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
+                phone: user.phone,
                 isGuest: user.isGuest,
 
                 merchantCount: user?.merchantData?.length,
@@ -1087,14 +1093,10 @@ export const getAllOrders = async (req, res) => {
         const page = Math.max(parseInt(req.query.page) || 1, 1);
         const perPage = Math.max(parseInt(req.query.per_page) || 10, 1);
         const search = (req.query.search || "").trim();
+        const status = req.query.status;
         const includeGuests = req.query.includeGuests === "true";
-        const merchantId = req.query.merchantId;
 
         const orderFilter = {};
-
-        if (merchantId) {
-            orderFilter.merchantId = new mongoose.Types.ObjectId(merchantId);
-        }
 
         // Search customer first
         if (search) {
@@ -1110,13 +1112,14 @@ export const getAllOrders = async (req, res) => {
                 { userId: { $in: users.map((u) => u._id) } },
             ];
         }
+        if (status) orderFilter.orderStatus = status;
 
         const totalRecords = await Order.countDocuments(orderFilter);
 
         const orders = await Order.find(orderFilter)
             .populate({
                 path: "userId",
-                select: "name email isGuest",
+                select: "name email isGuest phone",
             })
             .populate({
                 path: "merchantId",
@@ -1139,6 +1142,7 @@ export const getAllOrders = async (req, res) => {
                 id: order.userId?._id,
                 name: order.userId?.name,
                 email: order.userId?.email,
+                phone: order.userId?.phone,
                 isGuest: order.userId?.isGuest,
             },
 
