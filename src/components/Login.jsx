@@ -1,6 +1,7 @@
 import React from "react";
 import { useAppContext } from "../context/AppContext";
 import { toast } from "react-toastify";
+import { PhoneCall } from "lucide-react";
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
@@ -153,7 +154,12 @@ const Login = () => {
                 required
               />
             </div>
-
+            <div className="mt-4 flex items-center gap-2 rounded-md bg-blue-50 p-3 text-sm text-blue-700">
+              <PhoneCall className="h-4 w-4 shrink-0" />
+              <span>
+                We'll call you with your OTP — please answer to hear the code.
+              </span>
+            </div>
             <button
               type="submit"
               disabled={sending}
@@ -219,7 +225,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={resendOtp}
-                  className="font-medium text-primary"
+                  className="font-medium text-primary cursor-pointer"
                 >
                   Resend OTP
                 </button>

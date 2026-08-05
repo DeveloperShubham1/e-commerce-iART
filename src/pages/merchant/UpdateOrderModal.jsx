@@ -2,8 +2,16 @@ import React, { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
 import { courierPartners } from "../../assets/trackingPartners";
+import ConfirmModal from "../../functions/ConfirmModal";
+import { useAppContext } from "../../context/AppContext";
+import {
+  buildOrderUpdateMessage,
+  buildWhatsappUrl,
+  normalizeWhatsappNumber,
+} from "../../lib/orderMessageTemplates";
 
 const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
+  const { merchantData } = useAppContext();
   const [editable, setEditable] = useState({
     paymentStatus: order.paymentStatus,
     orderStatus: order.orderStatus,
@@ -13,22 +21,54 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
     trackingPartner: order.trackingPartner || "",
     amountPaid: order.amountPaid ?? 0,
   });
+  const [showWhatsappConfirm, setShowWhatsappConfirm] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState("");
+  const [whatsappMessage, setWhatsappMessage] = useState("");
 
   const [previewImage, setPreviewImage] = useState(null); // full-size screenshot viewer
+
+  const [saving, setSaving] = useState(false);
 
   const handleChange = (field, value) => {
     setEditable((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Live-computed as the merchant types, mirroring the backend virtual
-  // (totalAmount - amountPaid), so they see the effect before saving.
+  const normalizedPhone = normalizeWhatsappNumber(
+    order?.address?.phone || order?.userId?.phone || ""
+  );
+
   const pendingAmount = useMemo(() => {
     const paid = Number(editable.amountPaid) || 0;
     return Math.max(order.totalAmount - paid, 0);
   }, [editable.amountPaid, order.totalAmount]);
 
+  const shouldPromptWhatsapp = useMemo(() => {
+    const paymentChanged =
+      editable.paymentStatus !== order.paymentStatus ||
+      Number(editable.amountPaid) !== Number(order.amountPaid ?? 0);
+
+    const orderChanged =
+      editable.orderStatus !== order.orderStatus ||
+      editable.status !== order.status ||
+      editable.trackingPartner !== (order.trackingPartner || "");
+
+    return normalizedPhone !== "" && (paymentChanged || orderChanged);
+  }, [editable, order, normalizedPhone]);
+
+  const buildWhatsappPreview = () => {
+    const message = buildOrderUpdateMessage({
+      order,
+      editable,
+      originalOrder: order,
+      currency,
+      merchantName:
+        merchantData?.MerchantName || merchantData?.OwnerName || undefined,
+    });
+    setWhatsappMessage(message);
+    setWhatsappUrl(buildWhatsappUrl(normalizedPhone, message));
+  };
+
   const handleAmountPaidChange = (value) => {
-    // Keep it numeric and clamp to a sane range as they type
     let num = value === "" ? 0 : Number(value);
     if (Number.isNaN(num)) return;
     if (num < 0) num = 0;
@@ -36,8 +76,27 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
     handleChange("amountPaid", num);
   };
 
-  const handleUpdate = async () => {
-    // 🚫 Validation: tracking ID required when shipped
+  const performUpdate = async () => {
+    try {
+      const { data } = await axios.put(
+        `/api/orders/update/${order._id}`,
+        editable
+      );
+
+      if (data.success) {
+        toast.success(data?.message);
+        return true;
+      }
+
+      toast.error(data.message);
+      return false;
+    } catch (error) {
+      toast.error(error.message);
+      return false;
+    }
+  };
+
+  const handleSaveClick = async () => {
     if (
       editable.orderStatus === "shipped" &&
       (!editable.status || editable.status.trim() === "")
@@ -54,22 +113,40 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
       return;
     }
 
-    try {
-      const { data } = await axios.put(
-        `/api/orders/update/${order._id}`,
-        editable
-      );
+    setSaving(true);
 
-      if (data.success) {
-        toast.success(data?.message);
-        onUpdated();
-        onClose();
-      } else {
-        toast.error(data.message);
+    try {
+      const success = await performUpdate();
+
+      if (!success) return;
+
+      // Open WhatsApp confirmation only after successful update
+      if (shouldPromptWhatsapp) {
+        buildWhatsappPreview();
+        setShowWhatsappConfirm(true);
+        return;
       }
-    } catch (error) {
-      toast.error(error.message);
+
+      onUpdated();
+      onClose();
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleConfirmWhatsapp = () => {
+    if (whatsappUrl) {
+      window.open(whatsappUrl, "_blank");
+    }
+    setShowWhatsappConfirm(false);
+    onUpdated();
+    onClose();
+  };
+
+  const handleCancelWhatsapp = () => {
+    setShowWhatsappConfirm(false);
+    onUpdated();
+    onClose();
   };
 
   return (
@@ -219,22 +296,22 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
                 <select
                   className="w-full border p-2 rounded"
                   value={editable.paymentStatus}
-                 onChange={(e) => {
-  const value = e.target.value;
+                  onChange={(e) => {
+                    const value = e.target.value;
 
-  setEditable((prev) => ({
-    ...prev,
-    paymentStatus: value,
-    amountPaid:
-      value === "paid"
-        ? order.totalAmount
-        : value === "failed"
-        ? 0
-        : value === "pending"
-        ? 0
-        : prev.amountPaid,
-  }));
-}}
+                    setEditable((prev) => ({
+                      ...prev,
+                      paymentStatus: value,
+                      amountPaid:
+                        value === "paid"
+                          ? order.totalAmount
+                          : value === "failed"
+                            ? 0
+                            : value === "pending"
+                              ? 0
+                              : prev.amountPaid,
+                    }));
+                  }}
                 >
                   <option value="pending">Pending</option>
                   <option value="partial">Partially Paid</option>
@@ -363,22 +440,71 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
             </p>
 
             <button
-              onClick={handleUpdate}
+              onClick={handleSaveClick}
               disabled={
-                editable.orderStatus === "shipped" &&
-                ((!editable.status || editable.status.trim() === "") ||
-                  (!editable.trackingPartner || editable.trackingPartner.trim() === ""))
+                saving ||
+                (
+                  editable.orderStatus === "shipped" &&
+                  (
+                    (!editable.status || editable.status.trim() === "") ||
+                    (!editable.trackingPartner ||
+                      editable.trackingPartner.trim() === "")
+                  )
+                )
               }
-              className={`py-2 px-6 rounded-md text-white ${editable.orderStatus === "shipped" &&
-                ((!editable.status || editable.status.trim() === "") ||
-                  (!editable.trackingPartner || editable.trackingPartner.trim() === ""))
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-indigo-600 hover:bg-indigo-700"
+              className={`py-2 px-6 rounded-md text-white flex items-center justify-center min-w-[140px]
+    ${saving ||
+                  (
+                    editable.orderStatus === "shipped" &&
+                    (
+                      (!editable.status || editable.status.trim() === "") ||
+                      (!editable.trackingPartner ||
+                        editable.trackingPartner.trim() === "")
+                    )
+                  )
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-indigo-600 hover:bg-indigo-700"
                 }`}
             >
-              Save Changes
+              {saving ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
             </button>
           </div>
+          <ConfirmModal
+            isOpen={showWhatsappConfirm}
+            title="Send WhatsApp update?"
+            message={
+              whatsappMessage ||
+              "Order update is ready. Would you like to notify the customer on WhatsApp?"
+            }
+            onConfirm={handleConfirmWhatsapp}
+            onCancel={handleCancelWhatsapp}
+          />
         </div>
       </div>
 

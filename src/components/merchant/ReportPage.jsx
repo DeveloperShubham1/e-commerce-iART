@@ -176,7 +176,7 @@ export default function ReportPage() {
           </button>
         </div>
 
-        <TabsList className="grid w-full max-w-md grid-cols-1  md:grid-cols-3 min-h-[80px]">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 h-auto">
           <TabsTrigger value="sales">Total Sales</TabsTrigger>
           <TabsTrigger value="payment">Revenue by Payment</TabsTrigger>
           <TabsTrigger value="products">Top Products</TabsTrigger>
