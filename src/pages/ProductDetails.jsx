@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import { useProductById, useProductsByCategory } from "../services/user";
@@ -16,6 +16,8 @@ import {
   RotateCcw,
   Sparkles,
   Layers,
+  ExternalLink,
+  ZoomIn
 } from "lucide-react";
 
 const ProductDetails = () => {
@@ -43,6 +45,8 @@ const ProductDetails = () => {
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
   const [thumbnail, setThumbnail] = useState(null);
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const touchStartX = useRef(null);
 
   const variantIdFromUrl = searchParams.get("variant");
 
@@ -116,6 +120,25 @@ const ProductDetails = () => {
     addToCart(product._id, selectedVariant._id, selectedSize.size, 1);
   };
 
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard!");
+    } catch (error) {
+      console.error("Failed to copy:", error);
+
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = window.location.href;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+
+      toast.success("Link copied to clipboard!");
+    }
+  };
+
   const cartItem = cartItems.find(
     (item) =>
       item.productId === product?._id &&
@@ -171,8 +194,11 @@ const ProductDetails = () => {
   const otherVariants =
     product?.variants?.filter((v) => v._id !== selectedVariant?._id) || [];
 
+
+
+
   return (
-    <div className="mt-8 mb-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="mt-8 mb-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-x-hidden">
       {/* ===== BREADCRUMB ===== */}
       <nav className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-8 py-2">
         <Link to="/" className="hover:text-slate-900 transition-colors">
@@ -190,45 +216,141 @@ const ProductDetails = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
         {/* ==================== LEFT: IMAGE GALLERY (7 COLS) ==================== */}
-        <div className="lg:col-span-7 flex flex-col-reverse md:flex-row gap-4 items-start">
-          {/* Thumbnail List */}
-          <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto max-h-[460px]  p-1 [scrollbar-width:none] [::-webkit-scrollbar]:hidden">
-            {selectedVariant?.images?.map((img, idx) => {
-              const isActive = thumbnail === img;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setThumbnail(img)}
-                  className={`relative flex-shrink-0 cursor-pointer w-16 h-20 md:w-18 md:h-22 rounded-xl overflow-hidden border-2 transition-all duration-300 ${isActive
-                    ? "border-indigo-600 ring-2 ring-indigo-600/20 shadow-md scale-105"
-                    : "border-slate-200/80 hover:border-slate-300 opacity-70 hover:opacity-100"
-                    }`}
-                >
-                  <img
-                    src={img}
-                    alt={`${product.name} thumbnail ${idx}`}
-                    className="w-full h-full object-cover object-center"
-                  />
-                </button>
-              );
-            })}
-          </div>
+        <div className="lg:col-span-7 w-full min-w-0 flex flex-col gap-4 items-start">
+          {/* ---------- MOBILE: full-width swipeable carousel with dots + zoom ---------- */}
+          <div className="md:hidden w-full">
+            <div
+              className="relative w-full rounded-2xl overflow-hidden bg-slate-50 border border-slate-100"
+              onTouchStart={(e) => {
+                touchStartX.current = e.changedTouches[0].clientX;
+              }}
+              onTouchEnd={(e) => {
+                if (touchStartX.current === null) return;
+                const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+                const images = selectedVariant?.images || [];
+                if (Math.abs(deltaX) > 40 && images.length > 1) {
+                  const currentIdx = images.indexOf(thumbnail);
+                  let nextIdx;
+                  if (deltaX < 0) {
+                    // swiped left -> next image
+                    nextIdx = currentIdx === images.length - 1 ? 0 : currentIdx + 1;
+                  } else {
+                    // swiped right -> previous image
+                    nextIdx = currentIdx === 0 ? images.length - 1 : currentIdx - 1;
+                  }
+                  setThumbnail(images[nextIdx]);
+                }
+                touchStartX.current = null;
+              }}
+            >
+              {selectedSize?.offerPrice > 0 && (
+                <div className="absolute top-4 left-4 z-10 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                  Save {selectedSize.offerPrice}%
+                </div>
+              )}
 
-          {/* Main Hero Image Frame */}
-          <div className="relative w-fit h-fit mx-auto md:mx-0 rounded-3xl overflow-hidden group border border-slate-100 bg-slate-50">
-            {selectedSize?.offerPrice > 0 && (
-              <div className="absolute top-4 left-4 z-10 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                Save {selectedSize.offerPrice}%
+              {/* Zoom icon button */}
+              <button
+                type="button"
+                onClick={() => setIsZoomOpen(true)}
+                className="absolute bottom-3 right-3 z-10 w-9 h-9 rounded-md bg-white/90 backdrop-blur flex items-center justify-center shadow-md border border-slate-200 cursor-pointer"
+                aria-label="Zoom image"
+              >
+                <ZoomIn className="w-4 h-4 text-slate-700" />
+              </button>
+
+              <img
+                src={thumbnail}
+                alt={product.name}
+                className="w-full aspect-[3/4] object-cover object-center"
+              />
+            </div>
+
+            {/* Dot indicators */}
+            {selectedVariant?.images?.length > 1 && (
+              <div className="flex items-center justify-center gap-1.5 mt-3">
+                {selectedVariant.images.map((img, idx) => {
+                  const isActive = thumbnail === img;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setThumbnail(img)}
+                      aria-label={`Go to image ${idx + 1}`}
+                      className={`rounded-full transition-all duration-300 cursor-pointer ${isActive
+                        ? "w-2 h-2 bg-slate-900"
+                        : "w-1.5 h-1.5 bg-slate-300"
+                        }`}
+                    />
+                  );
+                })}
               </div>
             )}
+          </div>
 
+          {/* ---------- DESKTOP: thumbnail rail + main image ---------- */}
+          <div className="hidden md:flex w-full min-w-0 flex-row gap-4 items-start">
+            {/* Thumbnail List */}
+            <div className="flex flex-col gap-3 w-auto overflow-y-auto max-h-[460px] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {selectedVariant?.images?.map((img, idx) => {
+                const isActive = thumbnail === img;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setThumbnail(img)}
+                    className={`relative flex-shrink-0 cursor-pointer w-16 h-20 md:w-18 md:h-22 rounded-xl overflow-hidden border-2 transition-all duration-300 ${isActive
+                      ? "border-indigo-600 ring-2 ring-indigo-600/20 shadow-md scale-105"
+                      : "border-slate-200/80 hover:border-slate-300 opacity-70 hover:opacity-100"
+                      }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`${product.name} thumbnail ${idx}`}
+                      className="w-full h-full object-cover object-center"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Main Hero Image Frame */}
+            <div className="relative w-auto max-w-full mx-0 rounded-3xl overflow-hidden group border border-slate-100 bg-slate-50">
+              {selectedSize?.offerPrice > 0 && (
+                <div className="absolute top-4 left-4 z-10 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                  Save {selectedSize.offerPrice}%
+                </div>
+              )}
+
+              <img
+                src={thumbnail}
+                alt={product.name}
+                className="w-auto h-auto max-w-full max-h-[500px] object-contain rounded-3xl group-hover:scale-105 transition-transform duration-500 ease-out"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ---------- MOBILE ZOOM LIGHTBOX ---------- */}
+        {isZoomOpen && (
+          <div
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center md:hidden"
+            onClick={() => setIsZoomOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={() => setIsZoomOpen(false)}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white text-xl cursor-pointer"
+              aria-label="Close zoom"
+            >
+              &times;
+            </button>
             <img
               src={thumbnail}
               alt={product.name}
-              className="w-auto h-auto max-w-full max-h-[500px] object-contain rounded-3xl group-hover:scale-105 transition-transform duration-500 ease-out"
+              className="max-w-[92vw] max-h-[85vh] object-contain"
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
-        </div>
+        )}
 
         {/* ==================== RIGHT: PRODUCT INFO & ACTIONS (5 COLS) ==================== */}
         <div className="lg:col-span-5 flex flex-col justify-between space-y-6 lg:sticky lg:top-24 h-fit">
@@ -293,7 +415,7 @@ const ProductDetails = () => {
                 </span>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 {product.variants.map((v) => {
                   const isSelected = selectedVariant?._id === v._id;
                   return (
@@ -344,6 +466,28 @@ const ProductDetails = () => {
                   );
                 })}
               </div>
+            </div>
+
+            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-800">
+                  Selected Size: {selectedSize?.size}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {selectedSize?.stock > 0
+                    ? `${selectedSize.stock} pieces available`
+                    : "Currently unavailable"}
+                </p>
+              </div>
+
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${selectedSize?.stock > 0
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                  }`}
+              >
+                {selectedSize?.stock > 0 ? "In Stock" : "Out of Stock"}
+              </span>
             </div>
           </div>
 
@@ -410,9 +554,12 @@ const ProductDetails = () => {
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>100% Authentic</span>
               </div>
-              <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex flex-col items-center gap-1">
-                <RotateCcw className="w-4 h-4 text-amber-600" />
-                <span>Easy Returns</span>
+              <div
+                onClick={handleCopyLink}
+                className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex flex-col items-center gap-1 cursor-pointer hover:bg-slate-100 transition"
+              >
+                <ExternalLink className="w-4 h-4 text-purple-600" />
+                <span>Share Link</span>
               </div>
             </div>
           </div>

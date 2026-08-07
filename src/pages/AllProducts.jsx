@@ -121,6 +121,7 @@ const AllProducts = () => {
               rating: 4,
               variant,
               isSeprate: true,
+              totalColors: product.variants.length
             });
           });
         } else {
@@ -133,6 +134,7 @@ const AllProducts = () => {
             rating: 4,
             variant: product.variants[0],
             isSeprate: false,
+            totalColors: product.variants.length
           });
         }
       });

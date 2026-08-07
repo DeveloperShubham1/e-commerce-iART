@@ -51,6 +51,7 @@ const Collections = ({ data: collections, loading }) => {
                             categoryId: product.categoryId,
                             rating: product.rating || 4.8,
                             variant,
+                            totalColors: product.variants.length
                         });
                     });
                 } else {
@@ -61,6 +62,7 @@ const Collections = ({ data: collections, loading }) => {
                         categoryId: product.categoryId,
                         rating: product.rating || 4.8,
                         variant: product.variants[0],
+                        totalColors: product.variants.length
                     });
                 }
             });

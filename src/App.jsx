@@ -43,6 +43,8 @@ import { TermsPolicy } from "./pages/Policies/TermsPolicy";
 import { PrivacyPolicy } from "./pages/Policies/PrivacyPolicy";
 import CollectionsPage from "./pages/merchant/Collections/CollectionsPage";
 import ProductCollection from "./pages/Productcollection";
+import CartAnimation from "./components/globalLoader/CartAnimation";
+import LoadingCartAnimation from "./components/globalLoader/Loadingcartanimation";
 
 
 const BUILD_TYPE = import.meta.env.VITE_BUILD_TYPE; // user | merchant
@@ -79,7 +81,7 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  const { showUserLogin, isMerchant, authLoading, settings } = useAppContext();
+  const { showUserLogin, isMerchant, authLoading, settings, globalLoader } = useAppContext();
 
   useEffect(() => {
     if (settings?.theme?.primaryColor) {
@@ -129,9 +131,14 @@ const App = () => {
     return <Loader />;
   }
 
+  if (globalLoader) {
+    return <LoadingCartAnimation />;
+  }
+
   return (
 
     <QueryClientProvider client={queryClient}>
+      {/* {globalLoader && <CartAnimation />} */}
       <ScrollToTop />
       <div
         className={`text-default min-h-screen text-gray-700 bg-[var(--color-primary-bg)]`}

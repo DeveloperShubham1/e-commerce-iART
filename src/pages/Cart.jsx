@@ -299,8 +299,6 @@ const Cart = () => {
   const { data: paymentConfigData } = usePaymentConfigForUser(merchantId);
   const paymentConfig = paymentConfigData?.data;
 
-
-
   // Unique product IDs currently in the cart — recomputed only when cartItems changes
   const cartProductIds = useMemo(
     () => [...new Set(cartItems.map((c) => c.productId))],
@@ -497,6 +495,7 @@ const Cart = () => {
           quantity: cartItem.quantity,
           originalPrice: cartItem.price,
           offerPercentage: cartItem.offerPrice,
+          selectedSizeStock: sizeObj.stock,
           discountedPrice, // price after discount
           itemTotal: discountedPrice * cartItem.quantity,
           displayImage: variant.images[0], // first image of the variant
@@ -705,6 +704,7 @@ const Cart = () => {
           {/* LEFT COLUMN: CART ITEMS */}
           <div className="flex-1 w-full space-y-4">
             {cartArray.map((item) => (
+              console.log("sas", item),
               <div
                 key={item.cartId}
                 className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow"
@@ -753,6 +753,13 @@ const Cart = () => {
                           <span className="text-slate-400">Size:</span>
                           <span className="font-bold text-slate-900">
                             {item.selectedSize}
+                          </span>
+                        </div>
+
+                        <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700">
+                          <span className="text-slate-400">Available:</span>
+                          <span className="font-bold text-slate-900">
+                            {item.selectedSizeStock}
                           </span>
                         </div>
                       </div>
@@ -811,7 +818,7 @@ const Cart = () => {
                             )
                           }
                           title="Remove item"
-                          className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                          className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

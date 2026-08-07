@@ -67,7 +67,9 @@ const PayNowButton = ({ merchantId, items, addressId }) => {
               toast.error("Payment verification failed");
             }
           } catch (err) {
-            toast.error("Payment verification error");
+            toast.error(
+              err.response.data.message || "Payment verification error",
+            );
           }
         },
 
@@ -91,7 +93,9 @@ const PayNowButton = ({ merchantId, items, addressId }) => {
         console.error(response.error);
       });
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(
+        error.response.data.message || "Order creation failed",
+      );
     }
   };
 

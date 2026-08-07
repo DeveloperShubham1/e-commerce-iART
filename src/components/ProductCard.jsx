@@ -7,31 +7,36 @@ const ProductCard = ({ item }) => {
 
   const { currency, navigate } = useAppContext();
 
-  const { productId, name, categoryId, rating = 4, variant } = item;
+  const { productId, name, categoryId, rating = 4, variant, totalColors } = item;
 
   if (!variant) return null;
 
   const firstImage =
-    variant.images?.[variant.thumbnailIndex || 0] || variant.images?.[0] || "";
+    variant.images?.[variant.thumbnailIndex || 0] ||
+    variant.images?.[0] ||
+    "";
 
-  const prices =
-    variant.sizes?.map((size) => {
-      const discount = size.offerPrice || 0;
-      const discountedPrice =
-        discount > 0 ? size.price - (size.price * discount) / 100 : size.price;
+  if (!variant.sizes?.length) return null;
 
-      return {
-        regularPrice: size.price,
-        offerPrice: discountedPrice,
-        discount,
-      };
-    }) || [];
+  // Calculate prices for all sizes
+  const prices = variant.sizes.map((size) => {
+    const finalPrice =
+      size.offerPrice > 0
+        ? size.price - (size.price * size.offerPrice) / 100
+        : size.price;
 
-  if (!prices.length) return null;
+    return {
+      originalPrice: size.price,
+      finalPrice,
+      discount: size.offerPrice || 0,
+    };
+  });
 
-  const minOfferPrice = Math.min(...prices.map((p) => p.offerPrice));
+  const minFinalPrice = Math.min(...prices.map((p) => p.finalPrice));
+  const minOriginalPrice = Math.min(...prices.map((p) => p.originalPrice));
+  const maxDiscount = Math.max(...prices.map((p) => p.discount));
 
-  // Placeholder review count derived from rating so it always renders something sensible
+  // Placeholder review count
   const reviewCount = item.reviewCount ?? Math.round(rating * 20);
 
   return (
@@ -45,12 +50,19 @@ const ProductCard = ({ item }) => {
       className="group cursor-pointer w-full min-w-0"
     >
       {/* Image */}
+      {/* Image */}
       <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] bg-slate-100 rounded-lg overflow-hidden">
         <img
           src={firstImage}
           alt={name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
+
+        {totalColors > 1 && (
+          <span className="absolute bottom-2 right-2 bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded-md shadow-sm">
+            +{totalColors} colors
+          </span>
+        )}
       </div>
 
       {/* Content */}
@@ -66,21 +78,41 @@ const ProductCard = ({ item }) => {
             .map((_, i) => (
               <img
                 key={i}
-                src={i < Math.round(rating) ? assets.star_icon : assets.star_dull_icon}
+                src={
+                  i < Math.round(rating)
+                    ? assets.star_icon
+                    : assets.star_dull_icon
+                }
                 className="w-3"
                 alt=""
               />
             ))}
+
           <span className="text-xs text-slate-500 ml-1">
             {reviewCount} reviews
           </span>
         </div>
 
         {/* Price */}
-        <p className="mt-1.5 text-sm sm:text-base font-bold text-slate-900">
-          {currency}
-          {minOfferPrice.toFixed(0)}
-        </p>
+        <div className="mt-2 flex items-center gap-2 flex-wrap">
+          <span className="text-sm sm:text-base font-bold text-slate-900">
+            {currency}
+            {minFinalPrice.toFixed(2)}
+          </span>
+
+          {maxDiscount > 0 && (
+            <>
+              <span className="text-xs text-slate-400 line-through">
+                {currency}
+                {minOriginalPrice.toFixed(2)}
+              </span>
+
+              <span className="text-xs font-semibold text-green-600">
+                {maxDiscount}% OFF
+              </span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

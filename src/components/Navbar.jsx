@@ -108,7 +108,7 @@ const Navbar = () => {
             />
           )}
           <span className="text-lg sm:text-2xl font-semibold tracking-wide leading-none whitespace-nowrap text-[var(--color-primary)] truncate" title={settings?.title || "Brand Name"}>
-            {settings?.title || "Brand Name"}
+            {settings?.title}
           </span>
         </NavLink>
 

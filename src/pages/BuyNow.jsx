@@ -322,7 +322,7 @@ const BuyNow = () => {
   const paymentConfig = paymentConfigData?.data;
 
   const [quantity, setQuantity] = useState(1);
-  
+
 
   // Fetch exactly the product this checkout is for — independent of
   // whatever page the paginated catalog list has loaded in context.
@@ -580,6 +580,7 @@ const BuyNow = () => {
       quantity,
       itemTotal: discountedPrice * quantity,
       displayImage: variant.images[0],
+      selectedSizeStock: sizeObj.stock,
     };
   }, [product, location.state, quantity]);
   /* ---------------- UPDATE TOTAL ON QTY CHANGE ---------------- */
@@ -694,7 +695,7 @@ const BuyNow = () => {
         }
       }
     } catch (err) {
-      toast.error("Order failed");
+      toast.error(err.response.data.message || "Order failed");
     }
   };
 
@@ -761,6 +762,13 @@ const BuyNow = () => {
                         <span className="text-slate-400">Size:</span>
                         <span className="font-bold text-slate-900">
                           {item.selectedSize}
+                        </span>
+                      </div>
+
+                      <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700">
+                        <span className="text-slate-400">Stock:</span>
+                        <span className="font-bold text-slate-900">
+                          {item.selectedSizeStock}
                         </span>
                       </div>
                     </div>

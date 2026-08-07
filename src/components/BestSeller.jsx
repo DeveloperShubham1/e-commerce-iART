@@ -47,6 +47,7 @@ const BestSeller = ({ data: products, loading, title, desc }) => {
               rating: product.rating || 4.8,
               variant,
               isSeprate: true,
+              totalColors: product.variants.length
             });
           });
         }
@@ -61,6 +62,7 @@ const BestSeller = ({ data: products, loading, title, desc }) => {
             rating: product.rating || 4.8,
             variant: product.variants[0],
             isSeprate: false,
+            totalColors: product.variants.length
           });
         }
       });

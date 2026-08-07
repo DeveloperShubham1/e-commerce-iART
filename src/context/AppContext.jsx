@@ -22,6 +22,7 @@ export const AppContextProvider = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
   const [merchantData, setMerchantData] = useState({});
+  const [globalLoader, setGlobalLoader] = useState(false);
 
   // PAGINATION 
 
@@ -114,6 +115,7 @@ export const AppContextProvider = ({ children }) => {
 
   const fetchSettings = async () => {
     try {
+      setGlobalLoader(true);
       const { data } = await axios.get(
         `/api/user/settings?merchantId=${merchantId}`
       );
@@ -124,6 +126,9 @@ export const AppContextProvider = ({ children }) => {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message);
+
+    } finally {
+      setGlobalLoader(false);
     }
   };
 
@@ -424,6 +429,7 @@ export const AppContextProvider = ({ children }) => {
     fetchProducts,
     setCartItems,
     settings,
+    globalLoader,
     merchantData,
     setMerchantData,
     fetchUser,
