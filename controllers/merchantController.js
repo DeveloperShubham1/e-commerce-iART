@@ -342,7 +342,7 @@ export const updatePaymentConfig = async (req, res) => {
       codEnabled,
       upiId,
       qrCodeImage,
-      upiAdvancePayment
+      upiAdvancePayment,
     } = req.body;
 
     // Validate UPI advance payment
@@ -352,8 +352,7 @@ export const updatePaymentConfig = async (req, res) => {
       if (Number.isNaN(amount) || amount < 0) {
         return res.status(400).json({
           success: false,
-          message:
-            "UPI advance payment must be a valid non-negative number.",
+          message: "UPI advance payment must be a valid non-negative number.",
         });
       }
     }
@@ -1521,7 +1520,6 @@ export const getPaymentConfigforUser = async (req, res) => {
   }
 };
 
-
 export const getHomeData = async (req, res) => {
   try {
     let merchantId;
@@ -1542,7 +1540,12 @@ export const getHomeData = async (req, res) => {
     const merchantObjectId = new mongoose.Types.ObjectId(merchantId);
 
     // 1. new_products: latest 10 products
-    const new_products = await Product.find({ merchantId, isActive: true, isDeleted: false })
+    const new_products = await Product.find({
+      merchantId,
+      isActive: true,
+      isDeleted: false,
+    })
+      .populate("categoryId", "_id name")
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
@@ -1572,16 +1575,18 @@ export const getHomeData = async (req, res) => {
               isActive: true,
               isDeleted: false,
             },
+            populate: {
+              path: "categoryId",
+              select: "_id name",
+            },
           })
           .lean();
 
         return {
           ...col,
-          products: assignments
-            .map((a) => a.product)
-            .filter(Boolean),
+          products: assignments.map((a) => a.product).filter(Boolean),
         };
-      })
+      }),
     );
 
     // 4. best_seller: top 10 products ordered the most
@@ -1589,7 +1594,9 @@ export const getHomeData = async (req, res) => {
     const topProducts = await Order.aggregate([
       { $match: { merchantId: merchantObjectId } },
       { $unwind: "$items" },
-      { $group: { _id: "$items.productId", count: { $sum: "$items.quantity" } } },
+      {
+        $group: { _id: "$items.productId", count: { $sum: "$items.quantity" } },
+      },
       { $sort: { count: -1 } },
       { $limit: 10 },
     ]);
@@ -1597,17 +1604,31 @@ export const getHomeData = async (req, res) => {
     if (topProducts.length > 0) {
       const productIds = topProducts.map((p) => p._id);
       // fetch products and sort them according to topProducts order
-      const productsData = await Product.find({ _id: { $in: productIds }, merchantId, isActive: true, isDeleted: false }).lean();
+      const productsData = await Product.find({
+        _id: { $in: productIds },
+        merchantId,
+        isActive: true,
+        isDeleted: false,
+      })
+        .populate("categoryId", "_id name")
+        .lean();
 
       best_seller = topProducts
-        .map((tp) => productsData.find((p) => p._id.toString() === tp._id.toString()))
+        .map((tp) =>
+          productsData.find((p) => p._id.toString() === tp._id.toString()),
+        )
         .filter((p) => p != null);
     } else {
       // random 10 products if no orders
-      best_seller = await Product.aggregate([
-        { $match: { merchantId: merchantObjectId, isActive: true, isDeleted: false } },
-        { $sample: { size: 10 } },
-      ]);
+      best_seller = await Product.find({
+        merchantId,
+        isActive: true,
+        isDeleted: false,
+      })
+        .populate("categoryId", "_id name")
+        .lean();
+
+      best_seller = best_seller.sort(() => Math.random() - 0.5).slice(0, 10);
     }
 
     /* ------------------ VARIANT SORT ------------------ */

@@ -274,6 +274,191 @@ export const getCategoriesForUser = async (req, res) => {
   }
 };
 
+// export const productsByCategoryId = async (req, res) => {
+//   try {
+//     const { categoryId, productId } = req.query;
+
+//     if (!categoryId || !productId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "categoryId and productId are required",
+//       });
+//     }
+
+//     const excludeId = new mongoose.Types.ObjectId(productId);
+//     const categoryObjectId = new mongoose.Types.ObjectId(categoryId);
+
+//     let products = [];
+//     let type = "";
+
+//     /* =====================================================
+//        CASE 1 : SIMILAR PRODUCTS
+//        Same category
+//        Trending first
+//     ====================================================== */
+//     products = await Product.aggregate([
+//       {
+//         $match: {
+//           _id: { $ne: excludeId },
+//           categoryId: categoryObjectId,
+//           isActive: true,
+//         },
+//       },
+
+//       {
+//         $addFields: {
+//           hasTrendingVariant: {
+//             $anyElementTrue: {
+//               $map: {
+//                 input: "$variants",
+//                 as: "v",
+//                 in: "$$v.isTrending",
+//               },
+//             },
+//           },
+//           minTrendingOrder: {
+//             $min: {
+//               $map: {
+//                 input: {
+//                   $filter: {
+//                     input: "$variants",
+//                     as: "v",
+//                     cond: { $eq: ["$$v.isTrending", true] },
+//                   },
+//                 },
+//                 as: "tv",
+//                 in: "$$tv.trendingOrder",
+//               },
+//             },
+//           },
+//         },
+//       },
+
+//       {
+//         $sort: {
+//           hasTrendingVariant: -1,
+//           minTrendingOrder: 1,
+//           createdAt: -1,
+//         },
+//       },
+//       {
+//         $limit: 5,
+//       },
+//     ]);
+
+//     await Product.populate(products, [
+//       { path: "categoryId", select: "name _id" },
+//       { path: "subcategoryId", select: "name _id" },
+//     ]);
+
+//     if (products.length) {
+//       type = "similar";
+//     }
+
+//     /* =====================================================
+//        CASE 2 : TOP TRENDING
+//        ALL CATEGORIES
+//        Exclude current product
+//     ====================================================== */
+
+//     if (!products.length) {
+//       products = await Product.aggregate([
+//         {
+//           $match: {
+//             _id: { $ne: excludeId },
+//             isActive: true,
+//             "variants.isTrending": true,
+//           },
+//         },
+
+//         {
+//           $addFields: {
+//             minTrendingOrder: {
+//               $min: {
+//                 $map: {
+//                   input: {
+//                     $filter: {
+//                       input: "$variants",
+//                       as: "v",
+//                       cond: { $eq: ["$$v.isTrending", true] },
+//                     },
+//                   },
+//                   as: "tv",
+//                   in: "$$tv.trendingOrder",
+//                 },
+//               },
+//             },
+//           },
+//         },
+
+//         {
+//           $sort: {
+//             minTrendingOrder: 1,
+//             createdAt: -1,
+//           },
+//         },
+//       ]);
+
+//       await Product.populate(products, [
+//         { path: "categoryId", select: "name _id" },
+//         { path: "subcategoryId", select: "name _id" },
+//       ]);
+
+//       if (products.length) {
+//         type = "top-trending";
+//       }
+//     }
+
+//     /* =====================================================
+//        CASE 3 : ALL PRODUCTS
+//        Exclude current product
+//     ====================================================== */
+
+//     if (!products.length) {
+//       products = await Product.find({
+//         _id: { $ne: excludeId },
+//         isActive: true,
+//       })
+//         .populate("categoryId", "name _id")
+//         .populate("subcategoryId", "name _id")
+//         .sort({ createdAt: -1 });
+
+//       type = "products";
+//     }
+
+//     /* =====================================================
+//        SORT VARIANTS
+//     ====================================================== */
+
+//     products.forEach((product) => {
+//       if (product.variants?.length) {
+//         product.variants.sort((a, b) => {
+//           if (a.isTrending === b.isTrending) {
+//             return (a.trendingOrder ?? 999) - (b.trendingOrder ?? 999);
+//           }
+
+//           return b.isTrending - a.isTrending;
+//         });
+//       }
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       type,
+//       total: products.length,
+//       products,
+//     });
+//   } catch (error) {
+//     console.error(error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error fetching products",
+//       error: error.message,
+//     });
+//   }
+// };
+
 export const productsByCategoryId = async (req, res) => {
   try {
     const { categoryId, productId } = req.query;
@@ -285,6 +470,27 @@ export const productsByCategoryId = async (req, res) => {
       });
     }
 
+    if (
+      !mongoose.Types.ObjectId.isValid(categoryId) ||
+      !mongoose.Types.ObjectId.isValid(productId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid categoryId or productId",
+      });
+    }
+
+    const category = await Category.findById(categoryId).select("merchantId");
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: "Category not found",
+      });
+    }
+
+    const merchantId = category.merchantId;
+
     const excludeId = new mongoose.Types.ObjectId(productId);
     const categoryObjectId = new mongoose.Types.ObjectId(categoryId);
 
@@ -293,15 +499,17 @@ export const productsByCategoryId = async (req, res) => {
 
     /* =====================================================
        CASE 1 : SIMILAR PRODUCTS
-       Same category
-       Trending first
-    ====================================================== */
+       Same Category + Same Merchant
+    ===================================================== */
+
     products = await Product.aggregate([
       {
         $match: {
           _id: { $ne: excludeId },
+          merchantId: merchantId,
           categoryId: categoryObjectId,
           isActive: true,
+          isDeleted: false,
         },
       },
 
@@ -316,6 +524,7 @@ export const productsByCategoryId = async (req, res) => {
               },
             },
           },
+
           minTrendingOrder: {
             $min: {
               $map: {
@@ -323,7 +532,9 @@ export const productsByCategoryId = async (req, res) => {
                   $filter: {
                     input: "$variants",
                     as: "v",
-                    cond: { $eq: ["$$v.isTrending", true] },
+                    cond: {
+                      $eq: ["$$v.isTrending", true],
+                    },
                   },
                 },
                 as: "tv",
@@ -341,14 +552,21 @@ export const productsByCategoryId = async (req, res) => {
           createdAt: -1,
         },
       },
+
       {
         $limit: 5,
       },
     ]);
 
     await Product.populate(products, [
-      { path: "categoryId", select: "name _id" },
-      { path: "subcategoryId", select: "name _id" },
+      {
+        path: "categoryId",
+        select: "name _id",
+      },
+      {
+        path: "subcategoryId",
+        select: "name _id",
+      },
     ]);
 
     if (products.length) {
@@ -357,16 +575,17 @@ export const productsByCategoryId = async (req, res) => {
 
     /* =====================================================
        CASE 2 : TOP TRENDING
-       ALL CATEGORIES
-       Exclude current product
-    ====================================================== */
+       Same Merchant Only
+    ===================================================== */
 
     if (!products.length) {
       products = await Product.aggregate([
         {
           $match: {
             _id: { $ne: excludeId },
+            merchantId: merchantId,
             isActive: true,
+            isDeleted: false,
             "variants.isTrending": true,
           },
         },
@@ -380,7 +599,9 @@ export const productsByCategoryId = async (req, res) => {
                     $filter: {
                       input: "$variants",
                       as: "v",
-                      cond: { $eq: ["$$v.isTrending", true] },
+                      cond: {
+                        $eq: ["$$v.isTrending", true],
+                      },
                     },
                   },
                   as: "tv",
@@ -397,11 +618,21 @@ export const productsByCategoryId = async (req, res) => {
             createdAt: -1,
           },
         },
+
+        {
+          $limit: 5,
+        },
       ]);
 
       await Product.populate(products, [
-        { path: "categoryId", select: "name _id" },
-        { path: "subcategoryId", select: "name _id" },
+        {
+          path: "categoryId",
+          select: "name _id",
+        },
+        {
+          path: "subcategoryId",
+          select: "name _id",
+        },
       ]);
 
       if (products.length) {
@@ -410,25 +641,28 @@ export const productsByCategoryId = async (req, res) => {
     }
 
     /* =====================================================
-       CASE 3 : ALL PRODUCTS
-       Exclude current product
-    ====================================================== */
+       CASE 3 : LATEST PRODUCTS
+       Same Merchant Only
+    ===================================================== */
 
     if (!products.length) {
       products = await Product.find({
         _id: { $ne: excludeId },
+        merchantId: merchantId,
         isActive: true,
+        isDeleted: false,
       })
         .populate("categoryId", "name _id")
         .populate("subcategoryId", "name _id")
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .limit(5);
 
       type = "products";
     }
 
     /* =====================================================
        SORT VARIANTS
-    ====================================================== */
+    ===================================================== */
 
     products.forEach((product) => {
       if (product.variants?.length) {
@@ -437,7 +671,7 @@ export const productsByCategoryId = async (req, res) => {
             return (a.trendingOrder ?? 999) - (b.trendingOrder ?? 999);
           }
 
-          return b.isTrending - a.isTrending;
+          return Number(b.isTrending) - Number(a.isTrending);
         });
       }
     });
@@ -449,7 +683,7 @@ export const productsByCategoryId = async (req, res) => {
       products,
     });
   } catch (error) {
-    console.error(error);
+    console.error("productsByCategoryId:", error);
 
     return res.status(500).json({
       success: false,

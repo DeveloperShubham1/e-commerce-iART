@@ -60,7 +60,7 @@ userRouter.post("/order/cod", authUser, placeOrder);
 userRouter.post("/order/upi", authUser, placeUpiOrder);
 userRouter.get("/orders", authUser, getOrdersByUserId);
 userRouter.get("/settings", getMerchantSettings);
-userRouter.get("/home", authUser, getHomeData);
+userRouter.get("/home", getHomeData);
 userRouter.get("/payment-config", getPaymentConfigforUser);
 
 export default userRouter;

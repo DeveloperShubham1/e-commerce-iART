@@ -174,17 +174,17 @@ export const placeOrder = async (req, res) => {
     const merchantConfig = await loadMerchantConfig(order.merchantId);
 
     // 📲 Notify customer
-    notifyOrderPlaced(
-      {
-        phone: addressInfo.phone || req.user.phone,
-        orderId: order.orderId,
-        totalAmount: order.totalAmount,
-        paymentType: "cod",
-        paymentStatus: "pending",
-        orderStatus: "pending",
-      },
-      merchantConfig,
-    );
+    // notifyOrderPlaced(
+    //   {
+    //     phone: addressInfo.phone || req.user.phone,
+    //     orderId: order.orderId,
+    //     totalAmount: order.totalAmount,
+    //     paymentType: "cod",
+    //     paymentStatus: "pending",
+    //     orderStatus: "pending",
+    //   },
+    //  merchantConfig,
+    // );
 
     res.status(201).json({
       success: true,
@@ -356,17 +356,17 @@ export const placeUpiOrder = async (req, res) => {
     const merchantConfig = await loadMerchantConfig(order.merchantId);
 
     // 📲 Notify customer
-    notifyOrderPlaced(
-      {
-        phone: addressInfo.phone || req.user.phone,
-        orderId: order.orderId,
-        totalAmount: order.totalAmount,
-        paymentType: "upi",
-        paymentStatus: "pending",
-        orderStatus: "pending",
-      },
-      merchantConfig,
-    );
+    // notifyOrderPlaced(
+    //   {
+    //     phone: addressInfo.phone || req.user.phone,
+    //     orderId: order.orderId,
+    //     totalAmount: order.totalAmount,
+    //     paymentType: "upi",
+    //     paymentStatus: "pending",
+    //     orderStatus: "pending",
+    //   },
+    //   merchantConfig,
+    // );
 
     res.status(201).json({
       success: true,
@@ -618,26 +618,26 @@ export const updateOrderStatus = async (req, res) => {
 
     const merchantConfig = await loadMerchantConfig(updatedOrder.merchantId);
 
-    if (
-      orderStatus ||
-      paymentStatus ||
-      typeof isPaid === "boolean" ||
-      amountPaid !== undefined
-    ) {
-      notifyOrderStatusUpdate(
-        {
-          phone: updatedOrder.address?.phone,
-          orderId: updatedOrder.orderId,
-          orderStatus: updatedOrder.orderStatus,
-          paymentStatus: updatedOrder.paymentStatus,
-          paymentType: updatedOrder.paymentType,
-          isPaid: updatedOrder.isPaid,
-          amountPaid: updatedOrder.amountPaid,
-          pendingAmount: updatedOrder.pendingAmount,
-        },
-        merchantConfig,
-      );
-    }
+    // if (
+    //   orderStatus ||
+    //   paymentStatus ||
+    //   typeof isPaid === "boolean" ||
+    //   amountPaid !== undefined
+    // ) {
+    //   notifyOrderStatusUpdate(
+    //     {
+    //       phone: updatedOrder.address?.phone,
+    //       orderId: updatedOrder.orderId,
+    //       orderStatus: updatedOrder.orderStatus,
+    //       paymentStatus: updatedOrder.paymentStatus,
+    //       paymentType: updatedOrder.paymentType,
+    //       isPaid: updatedOrder.isPaid,
+    //       amountPaid: updatedOrder.amountPaid,
+    //       pendingAmount: updatedOrder.pendingAmount,
+    //     },
+    //     merchantConfig,
+    //   );
+    // }
 
     return res.status(200).json({
       success: true,
