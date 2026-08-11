@@ -123,8 +123,9 @@ export const addProduct = async (req, res) => {
       ) {
         return res.status(400).json({
           success: false,
-          message: `Variant ${i + 1}: thumbnailIndex must be between 0 and ${v.images.length - 1
-            }`,
+          message: `Variant ${i + 1}: thumbnailIndex must be between 0 and ${
+            v.images.length - 1
+          }`,
         });
       }
 
@@ -280,6 +281,7 @@ export const updateProduct = async (req, res) => {
     if (isSeprate !== undefined) {
       updateFields.isSeprate = isSeprate;
     }
+
     // Handle variants
     if (variants !== undefined) {
       let parsedVariants;
@@ -301,9 +303,29 @@ export const updateProduct = async (req, res) => {
         });
       }
 
-      // variant validation
+      // lookup existing variants by _id (for ownership check + size matching)
+      const existingVariantsById = new Map(
+        existing.variants.map((ev) => [ev._id.toString(), ev]),
+      );
+
       for (let i = 0; i < parsedVariants.length; i++) {
         const v = parsedVariants[i];
+
+        /* ---------- VARIANT _id VALIDATION ---------- */
+        let matchedExistingVariant = null;
+
+        if (v._id) {
+          matchedExistingVariant = existingVariantsById.get(v._id.toString());
+
+          if (!matchedExistingVariant) {
+            return res.status(400).json({
+              success: false,
+              message: `Variant ${i + 1}: invalid variant _id (does not belong to this product)`,
+            });
+          }
+          // v._id already set correctly -> Mongoose preserves this subdocument's identity
+        }
+        // no v._id -> new variant, Mongoose will assign a fresh _id (correct)
 
         if (!v.color || !v.color.trim()) {
           return res.status(400).json({
@@ -319,8 +341,28 @@ export const updateProduct = async (req, res) => {
           });
         }
 
+        // lookup existing sizes by _id (only relevant if this is an existing variant)
+        const existingSizesById = matchedExistingVariant
+          ? new Map(
+              matchedExistingVariant.sizes.map((es) => [es._id.toString(), es]),
+            )
+          : new Map();
+
         for (let j = 0; j < v.sizes.length; j++) {
           const s = v.sizes[j];
+
+          /* ---------- SIZE _id VALIDATION ---------- */
+          if (s._id) {
+            const matchedExistingSize = existingSizesById.get(s._id.toString());
+            if (!matchedExistingSize) {
+              return res.status(400).json({
+                success: false,
+                message: `Variant ${i + 1}, Size ${j + 1}: invalid size _id (does not belong to this variant)`,
+              });
+            }
+            // s._id already set correctly -> Mongoose preserves this size subdocument's identity
+          }
+          // no s._id -> new size, Mongoose will assign a fresh _id (correct)
 
           if (!s.size || s.size.trim() === "") {
             return res.status(400).json({
@@ -337,6 +379,13 @@ export const updateProduct = async (req, res) => {
             return res.status(400).json({
               success: false,
               message: `Variant ${i + 1}, Size ${j + 1}: invalid price`,
+            });
+          }
+
+          if (s.stock !== undefined && isNaN(Number(s.stock))) {
+            return res.status(400).json({
+              success: false,
+              message: `Variant ${i + 1}, Size ${j + 1}: invalid stock`,
             });
           }
         }
@@ -358,7 +407,7 @@ export const updateProduct = async (req, res) => {
 
         /* ---------- THUMBNAIL INDEX VALIDATION ---------- */
         if (v.thumbnailIndex === undefined || v.thumbnailIndex === null) {
-          v.thumbnailIndex = 0; // ✅ default for updates also
+          v.thumbnailIndex = 0;
         }
 
         if (
@@ -368,8 +417,9 @@ export const updateProduct = async (req, res) => {
         ) {
           return res.status(400).json({
             success: false,
-            message: `Variant ${i + 1}: thumbnailIndex must be between 0 and ${v.images.length - 1
-              }`,
+            message: `Variant ${i + 1}: thumbnailIndex must be between 0 and ${
+              v.images.length - 1
+            }`,
           });
         }
 
@@ -393,7 +443,6 @@ export const updateProduct = async (req, res) => {
           });
         }
 
-        // ensure trendingOrder is null if variant is not trending
         if (!v.isTrending) {
           v.trendingOrder = null;
         }
