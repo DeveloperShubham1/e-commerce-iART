@@ -107,6 +107,30 @@ export const getCustomersListApi = async ({
   }
 };
 
+// ============================= PRODUCTS =============================
+export const getProductListApi = async ({
+  page = 1,
+  per_page = 10,
+  search = "",
+  status,
+  merchantId,
+} = {}) => {
+  try {
+    const res = await http.get("/api/superadmin/products", {
+      params: {
+        page,
+        per_page,
+        search,
+        status,
+        merchantId,
+      },
+    });
+    return unwrap(res);
+  } catch (error) {
+    return handleError(error);
+  }
+};
+
 export const getMerchantDetailApi = async (id) => {
   try {
     const res = await http.get(`/api/superadmin/merchants/${id}`);

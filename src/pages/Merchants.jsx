@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { Plus, Mail, Phone, MapPin, Link, Trash, TicketCheck, UserCheck, CircleFadingPlus } from "lucide-react";
+import { Plus, Mail, Phone, MapPin, Link, Trash, ShoppingCart, UserCheck, CircleFadingPlus, ShoppingBasket } from "lucide-react";
 import {
   Card,
   Button,
@@ -243,6 +243,16 @@ const Merchants = () => {
         ),
     },
     {
+      key: "productCount",
+      header: "Product Count",
+      render: (row) =>
+        row.productCount ? (
+          <span className="flex items-center gap-1.5 text-slate-600">{row.productCount}</span>
+        ) : (
+          <span className="text-slate-400">0</span>
+        ),
+    },
+    {
       key: "isSubscribed",
       header: "Subscription",
       render: (row) => (
@@ -281,7 +291,7 @@ const Merchants = () => {
           actions={[
             {
               label: "Orders",
-              icon: TicketCheck,
+              icon: ShoppingCart,
               onClick: () => {
                 navigate(`/orders/${row._id}`);
               },
@@ -290,16 +300,14 @@ const Merchants = () => {
               label: "Customer",
               icon: UserCheck,
               onClick: () => {
-                console.log("Customers", row);
                 navigate(`/customers/${row._id}`);
               },
             },
             {
-              label: "Social Replies",
-              icon: CircleFadingPlus,
+              label: "Products",
+              icon: ShoppingBasket,
               onClick: () => {
-                console.log("Social Replies", row);
-                // navigate(`/merchant/${row._id}`);
+                navigate(`/products/${row._id}`);
               },
             },
             {

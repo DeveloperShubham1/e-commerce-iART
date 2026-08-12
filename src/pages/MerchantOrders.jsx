@@ -116,6 +116,7 @@ export const MerchantOrders = () => {
             header: "Customer",
             render: (row) => (
                 <div>
+                    <p className="text-slate-700">{row.user?.phone || "N/A"}</p>
                     <p className="text-slate-700">{row.user?.name || "N/A"}</p>
                     <p className="text-xs text-slate-500">{row.user?.email || "N/A"}</p>
                 </div>

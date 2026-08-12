@@ -14,6 +14,7 @@ import {
   getCustomerDetailApi,
   getAllCustomers,
   getAllOrders,
+  getProductListApi,
 } from "../../api/merchant.api"; // adjust filename/path to match yours
 
 // ----------------------------- thunks -----------------------------
@@ -128,6 +129,17 @@ export const fetchCustomersList = createAsyncThunk(
   },
 );
 
+export const fetchProductList = createAsyncThunk(
+  "merchant/fetchProductList",
+  async (params, { rejectWithValue }) => {
+    try {
+      return await getProductListApi(params);
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  },
+);
+
 export const fetchCustomerDetail = createAsyncThunk(
   "merchant/fetchCustomerDetail",
   async (id, { rejectWithValue }) => {
@@ -179,6 +191,8 @@ const initialState = {
   salesSummary: { data: null, loading: false, error: null },
 
   orders: { data: [], pagination: null, loading: false, error: null },
+
+  products: { data: [], pagination: null, loading: false, error: null },
 
   customers: { data: [], pagination: null, loading: false, error: null },
   customerDetail: { data: null, loading: false, error: null },
@@ -344,6 +358,22 @@ const merchantSlice = createSlice({
         toast.error(action.payload || "Failed to load orders");
       })
 
+      // ---------------------------- products ----------------------------
+      .addCase(fetchProductList.pending, (state) => {
+        state.products.loading = true;
+        state.products.error = null;
+      })
+      .addCase(fetchProductList.fulfilled, (state, action) => {
+        state.products.loading = false;
+        state.products.products = action.payload?.products ?? [];
+        state.products.pagination = action.payload?.pagination ?? null;
+      })
+      .addCase(fetchProductList.rejected, (state, action) => {
+        state.products.loading = false;
+        state.products.error = action.payload;
+        toast.error(action.payload || "Failed to load products");
+      })
+
       // --------------------------- customers ---------------------------
       .addCase(fetchCustomersList.pending, (state) => {
         state.customers.loading = true;
@@ -421,5 +451,6 @@ export const selectCustomers = (state) => state.merchant.customers;
 export const selectCustomerDetail = (state) => state.merchant.customerDetail;
 export const selectAllCustomers = (state) => state.merchant.allCustomers;
 export const selectAllOrders = (state) => state.merchant.allOrders;
+export const selectProducts = (state) => state.merchant.products;
 
 export default merchantSlice.reducer;

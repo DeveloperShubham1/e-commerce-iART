@@ -12,8 +12,8 @@ import {
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/merchants", label: "Merchants", icon: Store },
-  { to: "/customers", label: "Customers", icon: UserCheck },
-  { to: "/orders", label: "Orders", icon: ShoppingCart },
+  { to: "/all-customers", label: "Customers", icon: UserCheck },
+  { to: "/all-orders", label: "Orders", icon: ShoppingCart },
   { to: "/profile", label: "My Profile", icon: User },
 ];
 
@@ -81,7 +81,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           <div className="rounded-lg bg-gradient-to-br from-primary-50 to-accent-50 p-4">
             <p className="text-sm font-semibold text-slate-700">Need help?</p>
             <p className="mt-1 text-xs text-slate-500">Check our documentation or contact support.</p>
-            <button className="mt-3 text-xs font-semibold text-primary-600 hover:text-primary-700">
+            <button className="mt-3 text-xs font-semibold text-primary-600 hover:text-primary-700" onClick={() => window.open("https://digishop.cloud", "_blank")}>
               View docs →
             </button>
           </div>

@@ -1,7 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Button, Card, SearchField, Badge, Pagination, ResponsiveView, SkeletonRow } from '../components/ui';
-import { ArrowLeft } from 'lucide-react';
+import {
+    Button,
+    Card,
+    SearchField,
+    Badge,
+    Pagination,
+    ResponsiveView,
+    SkeletonRow,
+    ActionDropdown,
+    Modal,
+} from '../components/ui';
+import { ShoppingCart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchAllCustomers } from '../Components/Redux/MerchantSlice';
 
@@ -35,16 +45,28 @@ export const AllCustomers = () => {
         allCustomers: selectAllCustomers,
     } = useSelector((state) => state.merchant);
 
-    const customers = selectAllCustomers.allCustomers;
-    console.log("customers", customers);
+    const customers = selectAllCustomers?.data;
 
-    const pagination = selectAllCustomers.pagination || emptyPagination;
-    const loading = selectAllCustomers.loading;
+    const pagination = selectAllCustomers?.pagination || emptyPagination;
+    const loading = selectAllCustomers?.loading;
 
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [includeGuests, setIncludeGuests] = useState(true);
+
+    const [cartModalOpen, setCartModalOpen] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+
+    const openCartModal = (customer) => {
+        setSelectedCustomer(customer);
+        setCartModalOpen(true);
+    };
+
+    const closeCartModal = () => {
+        setCartModalOpen(false);
+        setSelectedCustomer(null);
+    };
 
     // Debounce the raw search input before it drives a request
     useEffect(() => {
@@ -75,6 +97,9 @@ export const AllCustomers = () => {
             render: (row) => (
                 <div>
                     <p className="font-semibold text-slate-800">
+                        {row.phone || "N/A"}
+                    </p>
+                    <p className="text-xs text-slate-500">
                         {row.name || "N/A"}
                     </p>
                     <p className="text-xs text-slate-500">
@@ -139,6 +164,21 @@ export const AllCustomers = () => {
                     <span className="text-slate-400">Never</span>
                 ),
         },
+        {
+            key: "actions",
+            header: "Actions",
+            render: (row) => (
+                <ActionDropdown
+                    actions={[
+                        {
+                            label: "View Cart Items",
+                            icon: ShoppingCart,
+                            onClick: () => openCartModal(row),
+                        },
+                    ]}
+                />
+            ),
+        }
     ];
 
     return (
@@ -151,14 +191,28 @@ export const AllCustomers = () => {
             </div>
 
             <Card className="p-4">
-                <SearchField
-                    value={search}
-                    onChange={handleSearchChange}
-                    placeholder="Search Customers..."
-                    className="max-w-sm"
-                />
-            </Card>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <SearchField
+                        value={search}
+                        onChange={handleSearchChange}
+                        placeholder="Search Customers..."
+                        className="max-w-sm"
+                    />
 
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={includeGuests}
+                            onChange={(e) => {
+                                setIncludeGuests(e.target.checked);
+                                setCurrentPage(1);
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        Include Guest Customers
+                    </label>
+                </div>
+            </Card>
             <Card className="p-0">
                 {loading ? (
                     <div className="overflow-x-auto">
@@ -187,6 +241,249 @@ export const AllCustomers = () => {
                     </div>
                 )}
             </Card>
+            <Modal
+                isOpen={cartModalOpen}
+                onClose={closeCartModal}
+                title={`Cart Items - ${selectedCustomer?.name ||
+                    selectedCustomer?.phone ||
+                    "Customer"
+                    }`}
+                size="xl"
+            >
+                {selectedCustomer && (
+                    <div className="space-y-5">
+
+                        {/* Customer Information */}
+                        <div className="rounded-xl bg-slate-50 p-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+                                <div>
+                                    <p className="text-xs text-slate-500">Customer</p>
+                                    <p className="font-medium text-slate-800">
+                                        {selectedCustomer.name || "Guest"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-slate-500">Phone</p>
+                                    <p className="font-medium text-slate-800">
+                                        {selectedCustomer.phone || "N/A"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-slate-500">Email</p>
+                                    <p className="font-medium text-slate-800 break-all">
+                                        {selectedCustomer.email || "N/A"}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-slate-500">
+                                        Cart Items
+                                    </p>
+                                    <p className="font-semibold text-slate-800">
+                                        {selectedCustomer.cartItems || 0}
+                                    </p>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        {/* Empty Cart */}
+                        {!selectedCustomer.cart?.length ? (
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                <ShoppingCart className="mb-3 h-10 w-10 text-slate-300" />
+
+                                <p className="font-medium text-slate-600">
+                                    Cart is empty
+                                </p>
+
+                                <p className="mt-1 text-sm text-slate-400">
+                                    This customer has no items in their cart.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+
+                                {selectedCustomer.cart.map((item, index) => {
+
+                                    // `product` and `variant` are the already-populated
+                                    // objects on the cart item — `productId` / `variantId`
+                                    // are just the raw ids, not objects, and there's no
+                                    // `variants` array on `product` to search: `variant`
+                                    // here is already the single matched variant (or null
+                                    // if it couldn't be resolved — see e.g. a cart line
+                                    // with a deleted/invalid variantId).
+                                    const product = item.product;
+                                    const variant = item.variant;
+
+                                    // Thumbnail
+                                    const thumbnail =
+                                        variant?.images?.[variant?.thumbnailIndex] ||
+                                        variant?.images?.[0];
+
+                                    return (
+                                        <div
+                                            key={item._id || index}
+                                            className="overflow-hidden rounded-xl border border-slate-200 bg-white"
+                                        >
+
+                                            {/* Product Header */}
+                                            <div className="flex flex-col gap-4 p-4 sm:flex-row">
+
+                                                {/* Product Image */}
+                                                <div className="shrink-0">
+                                                    {thumbnail ? (
+                                                        <img
+                                                            src={thumbnail}
+                                                            alt={product?.name || "Product"}
+                                                            className="h-28 w-28 rounded-xl border border-slate-200 object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-28 w-28 items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-400">
+                                                            No Image
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Product Details */}
+                                                <div className="min-w-0 flex-1">
+
+                                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+
+                                                        <div>
+                                                            <p className="text-xs font-medium text-slate-400">
+                                                                Product #{index + 1}
+                                                            </p>
+
+                                                            <h3 className="mt-1 font-semibold text-slate-800 line-clamp-2"
+                                                                title={product?.name || "Product unavailable"}
+                                                            >
+                                                                {product?.name || "Product unavailable"}
+                                                            </h3>
+
+                                                            {product?.brand && (
+                                                                <p className="mt-1 text-sm text-slate-500">
+                                                                    Brand: {product.brand}
+                                                                </p>
+                                                            )}
+
+                                                            {product?.sku && (
+                                                                <p className="mt-1 text-xs text-slate-500">
+                                                                    SKU: {product.sku}
+                                                                </p>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Quantity */}
+                                                        <div className="shrink-0">
+                                                            <p className="text-xs text-slate-500">
+                                                                Quantity
+                                                            </p>
+
+                                                            <Badge variant="info">
+                                                                {item.quantity}
+                                                            </Badge>
+                                                        </div>
+
+                                                    </div>
+
+                                                    {/* Variant Details */}
+                                                    <div className="mt-4 flex flex-wrap gap-3">
+
+                                                        {/* Color */}
+                                                        <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                                                            <span
+                                                                className="h-5 w-5 rounded-full border border-slate-300"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        variant?.colorCode ||
+                                                                        "#e2e8f0",
+                                                                }}
+                                                            />
+
+                                                            <div>
+                                                                <p className="text-[11px] text-slate-400">
+                                                                    Color
+                                                                </p>
+                                                                <p className="text-sm font-medium text-slate-700">
+                                                                    {variant?.color || "N/A"}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Size */}
+                                                        <div className="rounded-lg bg-slate-50 px-3 py-2">
+                                                            <p className="text-[11px] text-slate-400">
+                                                                Size
+                                                            </p>
+                                                            <p className="text-sm font-medium text-slate-700">
+                                                                {item.size || "N/A"}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Note: no stock or variant-SKU data comes
+                                                            through on the cart item's `variant` object
+                                                            (it only has _id/color/colorCode/images/
+                                                            thumbnailIndex) — dropped those two fields
+                                                            rather than showing them as always-0/blank. */}
+
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Pricing */}
+                                            <div className="border-t border-slate-100 bg-slate-50 px-4 py-4">
+
+                                                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+
+                                                    <div>
+                                                        <p className="text-xs text-slate-500">
+                                                            Unit Price
+                                                        </p>
+
+                                                        <p className="font-medium text-slate-800">
+                                                            {formatCurrency(item.price)}
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <p className="text-xs text-slate-500">
+                                                            Offer Price
+                                                        </p>
+
+                                                        <p className="font-medium text-green-600">
+                                                            {item.offerPrice
+                                                                ? formatCurrency(item.offerPrice)
+                                                                : "—"}
+                                                        </p>
+                                                    </div>
+
+                                                    <div>
+                                                        <p className="text-xs text-slate-500">
+                                                            Quantity
+                                                        </p>
+
+                                                        <p className="font-medium text-slate-800">
+                                                            {item.quantity}
+                                                        </p>
+                                                    </div>
+
+
+
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    );
+                                })}
+
+                            </div>
+                        )}
+                    </div>
+                )}
+            </Modal>
         </div>
     )
 }

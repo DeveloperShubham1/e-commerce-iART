@@ -15,6 +15,8 @@ import NotFound from "./pages/NotFound";
 import { MerchantOrders } from "./pages/MerchantOrders";
 import { MerchantCustomers } from "./pages/MerchantCustomers";
 import { AllCustomers } from "./pages/AllCustomers";
+import { AllOrders } from "./pages/AllOrders";
+import { MerchantProducts } from "./pages/MerchantProducts";
 
 const App = () => {
   return (
@@ -43,9 +45,10 @@ const App = () => {
           <Route path="/merchants" element={<Merchants />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/customers/:id" element={<MerchantCustomers />} />
-          <Route path="/orders" element={<Placeholder title="Orders" description="Manage all orders across merchants" />} />
           <Route path="/orders/:id" element={<MerchantOrders />} />
-          <Route path="/customers" element={<AllCustomers />} />
+          <Route path="/products/:id" element={<MerchantProducts />} />
+          <Route path="/all-orders" element={<AllOrders />} />
+          <Route path="/all-customers" element={<AllCustomers />} />
         </Route>
 
         {/* Catch-all 404 */}

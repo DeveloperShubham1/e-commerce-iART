@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Button, Card, SearchField, Badge, Pagination, ResponsiveView, SkeletonRow } from '../components/ui';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { fetchOrdersList } from '../Components/Redux/MerchantSlice';
+import { fetchAllOrders } from '../Components/Redux/MerchantSlice';
 
 const PER_PAGE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -64,12 +64,11 @@ export const AllOrders = () => {
     const navigate = useNavigate();
 
     const {
-        orders: selectOrders,
+        allOrders: selectAllOrders,
     } = useSelector((state) => state.merchant);
-
-    const orders = selectOrders.orders;
-    const pagination = selectOrders.pagination || emptyPagination;
-    const loading = selectOrders.loading;
+    const orders = selectAllOrders.data;
+    const pagination = selectAllOrders.pagination || emptyPagination;
+    const loading = selectAllOrders.loading;
 
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -86,7 +85,7 @@ export const AllOrders = () => {
     }, [search]);
 
     useEffect(() => {
-        dispatch(fetchOrdersList({
+        dispatch(fetchAllOrders({
             page: currentPage,
             per_page: PER_PAGE,
             search: debouncedSearch,
@@ -100,47 +99,110 @@ export const AllOrders = () => {
 
     const columns = [
         {
-            key: "orderId",
+            key: "order",
             header: "Order",
             render: (row) => (
                 <div>
                     <p className="font-semibold text-slate-800">{row.orderId}</p>
-                    <p className="text-xs text-slate-500">{formatDate(row.createdAt)}</p>
+                    <p className="text-xs text-slate-500">
+                        {formatDate(row.createdAt)}
+                    </p>
                 </div>
             ),
         },
+
         {
-            key: "user",
+            key: "customer",
             header: "Customer",
             render: (row) => (
                 <div>
-                    <p className="text-slate-700">{row.user?.name || "N/A"}</p>
-                    <p className="text-xs text-slate-500">{row.user?.email || "N/A"}</p>
+                    <p className="font-semibold text-slate-800">
+                        {row.customer?.phone || "N/A"}
+                    </p>
+                    <p className="font-medium text-slate-800">
+                        {row.customer?.name || "N/A"}
+                    </p>
+
+                    <p className="text-xs text-slate-500">
+                        {row.customer?.email || "N/A"}
+                    </p>
+
+                    {row.customer?.isGuest && (
+                        <Badge variant="warning" className="mt-1">
+                            Guest
+                        </Badge>
+                    )}
                 </div>
             ),
         },
+
         {
-            key: "totalAmount",
+            key: "merchant",
+            header: "Merchant",
+            render: (row) => (
+                <div>
+                    <p className="font-medium text-slate-800">
+                        {row.merchant?.MerchantName || "-"}
+                    </p>
+
+                    <p className="text-xs text-slate-500">
+                        {row.merchant?.email || "-"}
+                    </p>
+                </div>
+            ),
+        },
+
+        {
+            key: "items",
+            header: "Items",
+            render: (row) => (
+                <span className="font-semibold">
+                    {row.totalItems}
+                </span>
+            ),
+        },
+
+        {
+            key: "amount",
             header: "Amount",
             render: (row) => (
                 <div>
-                    <p className="font-medium text-slate-800">{formatCurrency(row.totalAmount)}</p>
-                    <p className="text-xs text-slate-500">Paid: {formatCurrency(row.amountPaid)}</p>
+                    <p className="font-semibold text-slate-800">
+                        {formatCurrency(row.totalAmount)}
+                    </p>
+
+                    <p className="text-xs text-green-600">
+                        Paid: {formatCurrency(row.amountPaid)}
+                    </p>
+
+                    <p className="text-xs text-red-500">
+                        Pending: {formatCurrency(
+                            (row.totalAmount || 0) - (row.amountPaid || 0)
+                        )}
+                    </p>
                 </div>
             ),
         },
+
         {
-            key: "paymentStatus",
+            key: "payment",
             header: "Payment",
             render: (row) => (
-                <Badge variant={paymentStatusVariant(row.paymentStatus)}>
-                    {row.paymentStatus}
-                </Badge>
+                <div className="space-y-1">
+                    <Badge variant={paymentStatusVariant(row.paymentStatus)}>
+                        {row.paymentStatus}
+                    </Badge>
+
+                    <p className="text-xs uppercase text-slate-500">
+                        {row.paymentType}
+                    </p>
+                </div>
             ),
         },
+
         {
-            key: "orderStatus",
-            header: "Status",
+            key: "status",
+            header: "Order Status",
             render: (row) => (
                 <Badge variant={orderStatusVariant(row.orderStatus)}>
                     {row.orderStatus}
@@ -197,13 +259,24 @@ export const AllOrders = () => {
                         <table className="w-full min-w-[640px] border-collapse text-left text-sm">
                             <thead>
                                 <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                                    {["Order", "Customer", "Amount", "Payment", "Status"].map((h) => (
-                                        <th key={h} className="px-5 py-3 font-semibold">{h}</th>
+                                    {[
+                                        "Order",
+                                        "Customer",
+                                        "Merchant",
+                                        "Items",
+                                        "Amount",
+                                        "Payment",
+                                        "Order Status",
+                                    ].map((h) => (
+                                        <th key={h} className="px-5 py-3 font-semibold">
+                                            {h}
+                                        </th>
                                     ))}
                                 </tr>
                             </thead>
+
                             <tbody>
-                                <SkeletonRow columns={5} />
+                                <SkeletonRow columns={7} />
                             </tbody>
                         </table>
                     </div>
