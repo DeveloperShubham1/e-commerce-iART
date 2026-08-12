@@ -5,6 +5,7 @@ import SuperAdmin from "../models/SuperAdmin.js";
 import Merchant from "../models/Merchants.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
+import Product from "../models/Product.js";
 
 // ============================= REGISTER =============================
 export const register = async (req, res) => {
@@ -422,22 +423,34 @@ export const getMerchantList = async (req, res) => {
             .limit(perPage)
             .lean();
 
-        const data = merchants.map((merchant) => ({
-            _id: merchant._id,
-            MerchantName: merchant.MerchantName,
-            OwnerName: merchant.OwnerName,
-            email: merchant.email,
-            phone: merchant.phone,
-            whatsappNumber: merchant.whatsappNumber,
-            logo: merchant.logo,
-            address: merchant.address,
-            isSubscribed: merchant.isSubscribed,
-            planName: merchant.subscription?.planName || null,
-            subscriptionEndDate: merchant.subscription?.endDate || null,
-            instagramConnected: merchant.instagram?.isConnected || false,
-            siteBaseUrl: merchant.instagram?.siteBaseUrl || null,
-            createdAt: merchant.createdAt,
-        }));
+        const data = await Promise.all(
+            merchants.map(async (merchant) => {
+                const productCount = await Product.countDocuments({
+                    merchantId: merchant._id,
+                    isDeleted: false,
+                });
+
+                return {
+                    _id: merchant._id,
+                    MerchantName: merchant.MerchantName,
+                    OwnerName: merchant.OwnerName,
+                    email: merchant.email,
+                    phone: merchant.phone,
+                    whatsappNumber: merchant.whatsappNumber,
+                    logo: merchant.logo,
+                    address: merchant.address,
+                    isSubscribed: merchant.isSubscribed,
+                    planName: merchant.subscription?.planName || null,
+                    subscriptionEndDate: merchant.subscription?.endDate || null,
+                    instagramConnected: merchant.instagram?.isConnected || false,
+                    siteBaseUrl: merchant.instagram?.siteBaseUrl || null,
+                    createdAt: merchant.createdAt,
+
+                    // Total products of this merchant
+                    productCount,
+                };
+            })
+        );
 
         const totalPages = Math.ceil(totalRecords / perPage);
 
@@ -688,6 +701,10 @@ export const getCustomersList = async (req, res) => {
 
         const users = await User.find(filter)
             .populate("merchantData.merchantId", "MerchantName email")
+            .populate(
+                "cartItems.productId",
+                "name sku brand description variants"
+            )
             .select({
                 name: 1,
                 email: 1,
@@ -743,6 +760,18 @@ export const getCustomersList = async (req, res) => {
                 merchant: user.merchantData[0]?.merchantId,
 
                 cartItems: user.cartItems.length,
+
+                // ✅ populated product + variant information
+                cart: user.cartItems.map((item) => ({
+                    _id: item._id,
+                    productId: item.productId,
+                    merchantId: item.merchantId,
+                    variantId: item.variantId,
+                    size: item.size,
+                    quantity: item.quantity,
+                    price: item.price,
+                    offerPrice: item.offerPrice,
+                })),
 
                 totalOrders: stats.totalOrders || 0,
 
@@ -805,6 +834,226 @@ export const toggleMerchantSubscription = async (req, res) => {
         return res
             .status(500)
             .json({ success: false, message: "Failed to toggle subscription." });
+    }
+};
+
+// ============================= PRODUCTS LIST =============================
+export const getProductList = async (req, res) => {
+    try {
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const perPage = Math.max(parseInt(req.query.per_page) || 10, 1);
+
+        const search = (req.query.search || "").trim();
+        const status = req.query.status;
+        const merchantId = req.query.merchantId;
+        const categoryId = req.query.categoryId;
+        const subcategoryId = req.query.subcategoryId;
+
+        // -----------------------------------
+        // BUILD FILTER
+        // -----------------------------------
+        const filter = {
+            isDeleted: false,
+        };
+
+        // Search
+        if (search) {
+            const searchFilter = [
+                { name: { $regex: search, $options: "i" } },
+                { sku: { $regex: search, $options: "i" } },
+                { brand: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } },
+
+                // Search inside variants
+                {
+                    "variants.color": {
+                        $regex: search,
+                        $options: "i",
+                    },
+                },
+
+                // Search inside variant SKU
+                {
+                    "variants.sizes.variantSku": {
+                        $regex: search,
+                        $options: "i",
+                    },
+                },
+            ];
+
+            // If search is a number, also search size prices,
+            // offer prices and stock.
+            const numericSearch = Number(search);
+
+            if (!isNaN(numericSearch)) {
+                searchFilter.push(
+                    {
+                        "variants.sizes.price": numericSearch,
+                    },
+                    {
+                        "variants.sizes.offerPrice": numericSearch,
+                    },
+                    {
+                        "variants.sizes.stock": numericSearch,
+                    }
+                );
+            }
+
+            filter.$or = searchFilter;
+        }
+
+        // Active / inactive status
+        if (status) {
+            if (status === "active") {
+                filter.isActive = true;
+            } else if (status === "inactive") {
+                filter.isActive = false;
+            }
+        }
+
+        // Merchant
+        if (merchantId) {
+            filter.merchantId = merchantId;
+        }
+
+        // Category
+        if (categoryId) {
+            filter.categoryId = categoryId;
+        }
+
+        // Subcategory
+        if (subcategoryId) {
+            filter.subcategoryId = subcategoryId;
+        }
+
+        // -----------------------------------
+        // TOTAL RECORDS
+        // -----------------------------------
+        const totalRecords = await Product.countDocuments(filter);
+
+        // -----------------------------------
+        // FETCH PRODUCTS
+        // -----------------------------------
+        const products = await Product.find(filter)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * perPage)
+            .limit(perPage)
+            .populate("merchantId", "MerchantName email phone")
+            .populate("categoryId", "name")
+            .populate("subcategoryId", "name")
+            .lean();
+
+        // -----------------------------------
+        // FORMAT PRODUCTS
+        // -----------------------------------
+        const data = products.map((product) => {
+            const variants = product.variants || [];
+
+            // Flatten all sizes from all variants
+            const sizes = variants.flatMap(
+                (variant) => variant.sizes || []
+            );
+
+            // Total stock across all variants/sizes
+            const totalStock = sizes.reduce(
+                (total, size) => total + Number(size.stock || 0),
+                0
+            );
+
+            // Prices
+            const prices = sizes
+                .map((size) => Number(size.price))
+                .filter((price) => !isNaN(price));
+
+            const offerPrices = sizes
+                .map((size) => Number(size.offerPrice))
+                .filter((price) => !isNaN(price));
+
+            // Minimum price
+            const minPrice =
+                prices.length > 0 ? Math.min(...prices) : 0;
+
+            // Maximum price
+            const maxPrice =
+                prices.length > 0 ? Math.max(...prices) : 0;
+
+            // Minimum offer price
+            const minOfferPrice =
+                offerPrices.length > 0
+                    ? Math.min(...offerPrices)
+                    : null;
+
+            // Number of variants
+            const variantCount = variants.length;
+
+            // Number of sizes
+            const sizeCount = sizes.length;
+
+            // Trending variants
+            const trendingVariants = variants.filter(
+                (variant) => variant.isTrending === true
+            );
+
+            return {
+                id: product._id,
+
+                name: product.name,
+                sku: product.sku,
+                brand: product.brand || "",
+                description: product.description || "",
+
+                merchant: product.merchantId || null,
+
+                category: product.categoryId || null,
+                subcategory: product.subcategoryId || null,
+
+                variants,
+
+                variantCount,
+                sizeCount,
+
+                totalStock,
+
+                minPrice,
+                maxPrice,
+                minOfferPrice,
+
+                trendingVariantsCount: trendingVariants.length,
+
+                isActive: product.isActive,
+                isSeprate: product.isSeprate,
+                isDeleted: product.isDeleted,
+
+                createdAt: product.createdAt,
+                updatedAt: product.updatedAt,
+            };
+        });
+
+        // -----------------------------------
+        // PAGINATION
+        // -----------------------------------
+        const totalPages = Math.ceil(totalRecords / perPage);
+
+        return res.status(200).json({
+            success: true,
+            products: data,
+
+            pagination: {
+                current_page: page,
+                per_page: perPage,
+                total_records: totalRecords,
+                total_pages: totalPages,
+                has_next_page: page < totalPages,
+                has_prev_page: page > 1,
+            },
+        });
+    } catch (error) {
+        console.error("Get products error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch products.",
+        });
     }
 };
 
@@ -998,6 +1247,10 @@ export const getAllCustomers = async (req, res) => {
 
         const users = await User.find(filter)
             .populate("merchantData.merchantId", "MerchantName email")
+            .populate(
+                "cartItems.productId",
+                "name sku brand variants"
+            )
             .select({
                 name: 1,
                 email: 1,
@@ -1041,6 +1294,46 @@ export const getAllCustomers = async (req, res) => {
         const data = users.map((user) => {
             const stats = statsMap[user._id.toString()] || {};
 
+            const cart = (user.cartItems || []).map((item) => {
+                const product = item.productId;
+
+                const variant = product?.variants?.find(
+                    (v) => v._id.toString() === item.variantId.toString()
+                );
+
+                return {
+                    _id: item._id,
+
+                    productId: product?._id || item.productId,
+                    product: product
+                        ? {
+                            _id: product._id,
+                            name: product.name,
+                            sku: product.sku,
+                            brand: product.brand,
+                        }
+                        : null,
+
+                    merchantId: item.merchantId,
+
+                    variantId: item.variantId,
+                    variant: variant
+                        ? {
+                            _id: variant._id,
+                            color: variant.color,
+                            colorCode: variant.colorCode,
+                            images: variant.images,
+                            thumbnailIndex: variant.thumbnailIndex,
+                        }
+                        : null,
+
+                    size: item.size,
+                    quantity: item.quantity,
+                    price: item.price,
+                    offerPrice: item.offerPrice,
+                };
+            });
+
             return {
                 id: user._id,
                 name: user.name,
@@ -1048,16 +1341,15 @@ export const getAllCustomers = async (req, res) => {
                 phone: user.phone,
                 isGuest: user.isGuest,
 
-                merchantCount: user?.merchantData?.length,
+                merchantCount: user?.merchantData?.length || 0,
 
-                merchant: user?.merchantData[0]?.merchantId,
+                merchant: user?.merchantData?.[0]?.merchantId || null,
 
-                cartItems: user?.cartItems?.length,
+                cartItems: cart.length,
+                cart,
 
                 totalOrders: stats.totalOrders || 0,
-
                 totalSpent: stats.totalSpent || 0,
-
                 lastOrder: stats.lastOrder || null,
 
                 createdAt: user.createdAt,
