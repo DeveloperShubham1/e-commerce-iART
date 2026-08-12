@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { X, Printer } from "lucide-react";
 import { toast } from "react-toastify";
 import { courierPartners } from "../../assets/trackingPartners";
 import ConfirmModal from "../../functions/ConfirmModal";
@@ -9,6 +9,7 @@ import {
   buildWhatsappUrl,
   normalizeWhatsappNumber,
 } from "../../lib/orderMessageTemplates";
+import { printOrderInvoice } from "../../utils/Printorderinvoice";
 
 const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
   const { merchantData } = useAppContext();
@@ -149,6 +150,20 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
     onClose();
   };
 
+  const handlePrint = () => {
+    printOrderInvoice({
+      order,
+      currency,
+      merchant: {
+        name:
+          merchantData?.MerchantName || merchantData?.OwnerName || undefined,
+        address: merchantData?.address,
+        phone: merchantData?.phone,
+        email: merchantData?.email,
+      },
+    });
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -166,9 +181,22 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
               {new Date(order.createdAt).toLocaleString()}
             </p>
           </div>
-          <button onClick={onClose}>
-            <X className="w-5 h-5 text-gray-500 hover:text-black" />
-          </button>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handlePrint}
+              title="Print order summary"
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-black border border-gray-300 hover:border-gray-400 rounded-md px-3 py-1.5 transition-colors cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              Print
+            </button>
+
+            <button onClick={onClose}>
+              <X className="w-5 h-5 text-gray-500 hover:text-black" />
+            </button>
+          </div>
         </div>
 
         {/* BODY */}
@@ -506,6 +534,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
             onCancel={handleCancelWhatsapp}
           />
         </div>
+
       </div>
 
       {/* FULL-SIZE SCREENSHOT VIEWER */}

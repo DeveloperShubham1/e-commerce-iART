@@ -311,6 +311,7 @@ const Cart = () => {
       queryKey: ["product", id],
       queryFn: () => getProductById(id),
       enabled: !!id,
+      refetchOnMount: "always",
     })),
   });
 

@@ -13,6 +13,7 @@ const EditProductModal = ({
 }) => {
   const initialVariants = Array.isArray(product?.variants)
     ? product.variants.map((v) => ({
+      _id: v._id,
       color: v.color || "",
       colorCode: v.colorCode || "",
       isTrending: v.isTrending || false,
@@ -28,6 +29,7 @@ const EditProductModal = ({
       newFiles: [],
       sizes: Array.isArray(v.sizes)
         ? v.sizes.map((s) => ({
+          _id: s._id,
           size: s.size || "",
           stock: Number(s.stock) || 0,
           price: s.price != null ? Number(s.price) : "",
@@ -289,6 +291,7 @@ const EditProductModal = ({
         ];
 
         const finalSizes = v.sizes.map((s) => ({
+          ...(s._id ? { _id: s._id } : {}),
           size: s.size.trim().toUpperCase(),
           stock: Number(s.stock) || 0,
           price: Number(s.price),
@@ -297,6 +300,7 @@ const EditProductModal = ({
         }));
 
         variantsPayload.push({
+          ...(v._id ? { _id: v._id } : {}),
           color: v.color.trim(),
           colorCode: v.colorCode?.trim() || undefined,
           images: finalImages,
