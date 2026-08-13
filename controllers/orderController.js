@@ -1170,6 +1170,338 @@ export const getOrdersByUserId = async (req, res) => {
   }
 };
 
+// export const getSalesTrend = async (req, res) => {
+//   try {
+//     const merchantId = req.merchant._id;
+//     let { type = "month", fromDate, toDate } = req.query;
+
+//     const IST_TIMEZONE = "Asia/Kolkata";
+
+//     const monthNames = [
+//       "Jan",
+//       "Feb",
+//       "Mar",
+//       "Apr",
+//       "May",
+//       "Jun",
+//       "Jul",
+//       "Aug",
+//       "Sep",
+//       "Oct",
+//       "Nov",
+//       "Dec",
+//     ];
+
+//     const formatShortDate = (d) =>
+//       `${String(d.getDate()).padStart(2, "0")}/${String(
+//         d.getMonth() + 1,
+//       ).padStart(2, "0")}/${String(d.getFullYear()).slice(-2)}`;
+
+//     const now = new Date(
+//       new Date().toLocaleString("en-US", { timeZone: IST_TIMEZONE }),
+//     );
+
+//     const getDaysDiff = (start, end) =>
+//       Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+
+//     let dateMatch = {};
+//     let use12Buckets = false;
+//     let customStart, customEnd, totalDays, isMultiYear;
+
+//     switch (type) {
+//       case "today": {
+//         const startOfToday = new Date(now);
+//         startOfToday.setHours(0, 0, 0, 0);
+
+//         const endOfToday = new Date(now);
+//         endOfToday.setHours(23, 59, 59, 999);
+
+//         dateMatch.createdAt = {
+//           $gte: startOfToday,
+//           $lte: endOfToday,
+//         };
+//         break;
+//       }
+
+//       case "week":
+//       case "month":
+//       case "year":
+//         dateMatch = getDateMatch({ type, timezone: IST_TIMEZONE });
+//         break;
+
+//       case "custom": {
+//         if (!fromDate || !toDate) {
+//           return res.status(400).json({
+//             success: false,
+//             message: "fromDate and toDate are required for custom type",
+//           });
+//         }
+
+//         customStart = new Date(fromDate);
+//         customStart.setHours(0, 0, 0, 0);
+
+//         customEnd = new Date(toDate);
+//         customEnd.setHours(23, 59, 59, 999);
+
+//         totalDays = getDaysDiff(customStart, customEnd);
+//         isMultiYear = customStart.getFullYear() !== customEnd.getFullYear();
+//         use12Buckets = totalDays > 31;
+
+//         dateMatch.createdAt = {
+//           $gte: customStart,
+//           $lte: customEnd,
+//         };
+//         break;
+//       }
+//     }
+
+//     const getGroupBy = () => {
+//       switch (type) {
+//         case "today":
+//           return {
+//             slot: {
+//               $floor: {
+//                 $divide: [
+//                   { $hour: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//                   3,
+//                 ],
+//               },
+//             },
+//           };
+
+//         case "week":
+//         case "month":
+//           return {
+//             year: { $year: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//             month: { $month: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//             day: {
+//               $dayOfMonth: { date: "$createdAt", timezone: IST_TIMEZONE },
+//             },
+//           };
+
+//         case "year":
+//           return {
+//             year: { $year: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//             month: { $month: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//           };
+
+//         case "custom":
+//           if (use12Buckets) {
+//             return {
+//               bucket: {
+//                 $floor: {
+//                   $multiply: [
+//                     {
+//                       $divide: [
+//                         {
+//                           $subtract: [
+//                             { $toLong: "$createdAt" },
+//                             customStart.getTime(),
+//                           ],
+//                         },
+//                         customEnd.getTime() - customStart.getTime(),
+//                       ],
+//                     },
+//                     12,
+//                   ],
+//                 },
+//               },
+//             };
+//           }
+
+//           return {
+//             year: { $year: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//             month: { $month: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//             day: {
+//               $dayOfMonth: { date: "$createdAt", timezone: IST_TIMEZONE },
+//             },
+//           };
+
+//         default:
+//           return {};
+//       }
+//     };
+
+//     const groupBy = getGroupBy();
+
+//     const orderStats = await Order.aggregate([
+//       {
+//         $match: {
+//           merchantId: new mongoose.Types.ObjectId(merchantId),
+//           paymentStatus: "paid",
+//           orderStatus: {
+//             $in: ["delivered", "shipped"],
+//           },
+//           ...dateMatch,
+//         },
+//       },
+//       { $unwind: "$items" },
+//       {
+//         $group: {
+//           _id: groupBy,
+//           sales: { $sum: "$totalAmount" },
+//           sold: { $sum: "$items.quantity" },
+//         },
+//       },
+//     ]);
+
+//     const productStats = await Product.aggregate([
+//       {
+//         $match: {
+//           merchantId: new mongoose.Types.ObjectId(merchantId),
+//           ...dateMatch,
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: groupBy,
+//           added: { $sum: 1 },
+//         },
+//       },
+//     ]);
+
+//     const buckets = [];
+//     const formatKey = (d) =>
+//       `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+//     if (type === "today") {
+//       for (let i = 0; i < 8; i++) {
+//         buckets.push({
+//           key: i,
+//           period: `${i * 3}:00 - ${(i + 1) * 3}:00`,
+//           sales: 0,
+//           sold: 0,
+//           added: 0,
+//         });
+//       }
+//     } else if (type === "week") {
+//       const dayOfWeek = now.getDay() || 7;
+//       const startOfWeek = new Date(now);
+//       startOfWeek.setDate(now.getDate() - dayOfWeek + 1);
+
+//       for (let i = 0; i < 7; i++) {
+//         const d = new Date(startOfWeek);
+//         d.setDate(startOfWeek.getDate() + i);
+
+//         buckets.push({
+//           key: formatKey(d),
+//           period: `${d.getDate()} ${monthNames[d.getMonth()]}`,
+//           sales: 0,
+//           sold: 0,
+//           added: 0,
+//         });
+//       }
+//     } else if (type === "month") {
+//       const year = now.getFullYear();
+//       const month = now.getMonth();
+//       const days = new Date(year, month + 1, 0).getDate();
+
+//       for (let i = 1; i <= days; i++) {
+//         buckets.push({
+//           key: i,
+//           period: `${i} ${monthNames[month]}`,
+//           sales: 0,
+//           sold: 0,
+//           added: 0,
+//         });
+//       }
+//     } else if (type === "year") {
+//       for (let i = 0; i < 12; i++) {
+//         buckets.push({
+//           key: i + 1,
+//           period: monthNames[i],
+//           sales: 0,
+//           sold: 0,
+//           added: 0,
+//         });
+//       }
+//     } else if (type === "custom") {
+//       if (use12Buckets) {
+//         const partSize = Math.ceil(totalDays / 12);
+
+//         for (let i = 0; i < 12; i++) {
+//           const start = new Date(customStart);
+//           start.setDate(customStart.getDate() + i * partSize);
+
+//           const end = new Date(start);
+//           end.setDate(start.getDate() + partSize - 1);
+
+//           buckets.push({
+//             key: i,
+//             period: `${formatShortDate(start)} - ${formatShortDate(end)}`,
+//             sales: 0,
+//             sold: 0,
+//             added: 0,
+//           });
+//         }
+//       } else {
+//         for (
+//           let d = new Date(customStart);
+//           d <= customEnd;
+//           d.setDate(d.getDate() + 1)
+//         ) {
+//           buckets.push({
+//             key: formatKey(d),
+//             period: isMultiYear
+//               ? `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`
+//               : `${d.getDate()} ${monthNames[d.getMonth()]}`,
+//             sales: 0,
+//             sold: 0,
+//             added: 0,
+//           });
+//         }
+//       }
+//     }
+
+//     const mergeData = (arr, field) => {
+//       arr.forEach((item) => {
+//         let key;
+
+//         if (type === "today") key = item._id.slot;
+//         else if (type === "custom" && use12Buckets) key = item._id.bucket;
+//         else if (type === "week" || type === "custom")
+//           key = `${item._id.year}-${item._id.month}-${item._id.day}`;
+//         else if (type === "month") key = item._id.day;
+//         else if (type === "year") key = item._id.month;
+
+//         const bucket = buckets.find((b) => b.key === key);
+//         if (bucket) {
+//           if (field === "order") {
+//             bucket.sales = item.sales;
+//             bucket.sold = item.sold;
+//           } else {
+//             bucket.added = item.added;
+//           }
+//         }
+//       });
+//     };
+
+//     mergeData(orderStats, "order");
+//     mergeData(productStats, "product");
+
+//     /* -------------------------------
+//        Totals
+//     ------------------------------- */
+//     const totals = {};
+//     buckets.forEach((b) => {
+//       console.log("Bucket:", b);
+//       totals[type] = (totals[type] || 0) + b.sales;
+//     });
+
+//     return res.json({
+//       success: true,
+//       data: buckets,
+//       totals,
+//     });
+//   } catch (error) {
+//     console.error("Sales Trend Error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch sales trend",
+//     });
+//   }
+// };
+
 export const getSalesTrend = async (req, res) => {
   try {
     const merchantId = req.merchant._id;
@@ -1324,24 +1656,62 @@ export const getSalesTrend = async (req, res) => {
 
     const groupBy = getGroupBy();
 
-    const orderStats = await Order.aggregate([
+    /* -------------------------------
+       Order stats: sales and sold split
+       into separate branches so unwinding
+       items (needed for `sold`) doesn't
+       multiply `totalAmount` (needed for `sales`)
+    ------------------------------- */
+    const orderStatsFacet = await Order.aggregate([
       {
         $match: {
           merchantId: new mongoose.Types.ObjectId(merchantId),
           paymentStatus: "paid",
-          orderStatus: "delivered",
+          orderStatus: {
+            $in: ["delivered", "shipped"],
+          },
           ...dateMatch,
         },
       },
-      { $unwind: "$items" },
       {
-        $group: {
-          _id: groupBy,
-          sales: { $sum: "$totalAmount" },
-          sold: { $sum: "$items.quantity" },
+        $facet: {
+          salesData: [
+            {
+              $group: {
+                _id: groupBy,
+                sales: { $sum: "$totalAmount" },
+              },
+            },
+          ],
+          soldData: [
+            { $unwind: "$items" },
+            {
+              $group: {
+                _id: groupBy,
+                sold: { $sum: "$items.quantity" },
+              },
+            },
+          ],
         },
       },
     ]);
+
+    const salesData = orderStatsFacet[0]?.salesData || [];
+    const soldData = orderStatsFacet[0]?.soldData || [];
+
+    const salesMap = new Map(
+      salesData.map((s) => [JSON.stringify(s._id), s.sales]),
+    );
+    const soldMap = new Map(
+      soldData.map((s) => [JSON.stringify(s._id), s.sold]),
+    );
+    const allOrderKeys = new Set([...salesMap.keys(), ...soldMap.keys()]);
+
+    const orderStats = [...allOrderKeys].map((k) => ({
+      _id: JSON.parse(k),
+      sales: salesMap.get(k) || 0,
+      sold: soldMap.get(k) || 0,
+    }));
 
     const productStats = await Product.aggregate([
       {
@@ -1480,15 +1850,14 @@ export const getSalesTrend = async (req, res) => {
     /* -------------------------------
        Totals
     ------------------------------- */
-    const totals = {};
-    buckets.forEach((b) => {
-      totals[type] = (totals[type] || 0) + b.sales;
-    });
+    const totalSales = buckets.reduce((sum, b) => sum + b.sales, 0);
 
     return res.json({
       success: true,
       data: buckets,
-      totals,
+      totals: {
+        [type]: totalSales,
+      },
     });
   } catch (error) {
     console.error("Sales Trend Error:", error);
@@ -1511,7 +1880,9 @@ export const getTopSellingProducts = async (req, res) => {
         $match: {
           merchantId: new mongoose.Types.ObjectId(merchantId),
           paymentStatus: "paid",
-          orderStatus: "delivered",
+          orderStatus: {
+            $in: ["delivered", "shipped"],
+          },
           ...dateMatch,
         },
       },
@@ -1559,6 +1930,304 @@ export const getTopSellingProducts = async (req, res) => {
   }
 };
 
+// export const getPaymentAnalytics = async (req, res) => {
+//   try {
+//     const merchantId = req.merchant._id;
+//     let { type = "month", fromDate, toDate } = req.query;
+
+//     const IST_TIMEZONE = "Asia/Kolkata";
+
+//     const monthNames = [
+//       "Jan",
+//       "Feb",
+//       "Mar",
+//       "Apr",
+//       "May",
+//       "Jun",
+//       "Jul",
+//       "Aug",
+//       "Sep",
+//       "Oct",
+//       "Nov",
+//       "Dec",
+//     ];
+
+//     const now = new Date(
+//       new Date().toLocaleString("en-US", { timeZone: IST_TIMEZONE }),
+//     );
+//     const formatShortDate = (d) =>
+//       `${String(d.getDate()).padStart(2, "0")}/${String(
+//         d.getMonth() + 1,
+//       ).padStart(2, "0")}/${String(d.getFullYear()).slice(-2)}`;
+
+//     const getDaysDiff = (start, end) =>
+//       Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+
+//     let dateMatch = {};
+//     let customStart, customEnd, totalDays;
+//     let use12Buckets = false;
+//     let isMultiYear = false;
+
+//     switch (type) {
+//       case "today": {
+//         const start = new Date(now);
+//         start.setHours(0, 0, 0, 0);
+
+//         const end = new Date(now);
+//         end.setHours(23, 59, 59, 999);
+
+//         dateMatch.createdAt = { $gte: start, $lte: end };
+//         break;
+//       }
+
+//       case "week":
+//       case "month":
+//       case "year":
+//         dateMatch = getDateMatch({ type, timezone: IST_TIMEZONE });
+//         break;
+
+//       case "custom": {
+//         if (!fromDate || !toDate) {
+//           return res.status(400).json({
+//             success: false,
+//             message: "fromDate and toDate are required",
+//           });
+//         }
+
+//         customStart = new Date(fromDate);
+//         customStart.setHours(0, 0, 0, 0);
+
+//         customEnd = new Date(toDate);
+//         customEnd.setHours(23, 59, 59, 999);
+
+//         totalDays = getDaysDiff(customStart, customEnd);
+//         use12Buckets = totalDays > 31;
+//         isMultiYear = customStart.getFullYear() !== customEnd.getFullYear();
+
+//         dateMatch.createdAt = { $gte: customStart, $lte: customEnd };
+//         break;
+//       }
+//     }
+
+//     /* -------------------------------
+//        Group By
+//     ------------------------------- */
+//     const getGroupBy = () => {
+//       switch (type) {
+//         case "today":
+//           return {
+//             slot: {
+//               $floor: {
+//                 $divide: [
+//                   { $hour: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//                   3,
+//                 ],
+//               },
+//             },
+//             paymentType: "$paymentType",
+//           };
+
+//         case "year":
+//           return {
+//             month: { $month: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//             paymentType: "$paymentType",
+//           };
+
+//         case "custom":
+//           if (use12Buckets) {
+//             return {
+//               bucket: {
+//                 $floor: {
+//                   $multiply: [
+//                     {
+//                       $divide: [
+//                         {
+//                           $subtract: [
+//                             { $toLong: "$createdAt" },
+//                             customStart.getTime(),
+//                           ],
+//                         },
+//                         customEnd.getTime() - customStart.getTime(),
+//                       ],
+//                     },
+//                     12,
+//                   ],
+//                 },
+//               },
+//               paymentType: "$paymentType",
+//             };
+//           }
+
+//         default:
+//           return {
+//             year: { $year: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//             month: { $month: { date: "$createdAt", timezone: IST_TIMEZONE } },
+//             day: {
+//               $dayOfMonth: { date: "$createdAt", timezone: IST_TIMEZONE },
+//             },
+//             paymentType: "$paymentType",
+//           };
+//       }
+//     };
+
+//     const stats = await Order.aggregate([
+//       {
+//         $match: {
+//           merchantId: new mongoose.Types.ObjectId(merchantId),
+//           orderStatus: "delivered",
+//           paymentStatus: "paid",
+//           ...dateMatch,
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: getGroupBy(),
+//           revenue: { $sum: "$totalAmount" },
+//         },
+//       },
+//     ]);
+
+//     /* -------------------------------
+//        Buckets
+//     ------------------------------- */
+//     const buckets = [];
+//     const formatKey = (d) =>
+//       `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+//     if (type === "today") {
+//       for (let i = 0; i < 8; i++) {
+//         buckets.push({
+//           key: i,
+//           period: `${i * 3}:00 - ${(i + 1) * 3}:00`,
+//           cod: 0,
+//           online: 0,
+//         });
+//       }
+//     }
+
+//     if (type === "week") {
+//       const start = new Date(now);
+//       start.setDate(now.getDate() - (now.getDay() || 7) + 1);
+
+//       for (let i = 0; i < 7; i++) {
+//         const d = new Date(start);
+//         d.setDate(start.getDate() + i);
+
+//         buckets.push({
+//           key: formatKey(d),
+//           period: d.toLocaleDateString("en-IN", { weekday: "short" }),
+//           cod: 0,
+//           online: 0,
+//         });
+//       }
+//     }
+
+//     if (type === "month") {
+//       const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+//       for (let i = 1; i <= days; i++) {
+//         buckets.push({
+//           key: i,
+//           period: `${i} ${monthNames[now.getMonth()]}`,
+//           cod: 0,
+//           online: 0,
+//         });
+//       }
+//     }
+
+//     if (type === "year") {
+//       for (let i = 0; i < 12; i++) {
+//         buckets.push({
+//           key: i + 1,
+//           period: monthNames[i],
+//           cod: 0,
+//           online: 0,
+//         });
+//       }
+//     }
+
+//     if (type === "custom") {
+//       if (use12Buckets) {
+//         const partSize = Math.ceil(totalDays / 12);
+
+//         for (let i = 0; i < 12; i++) {
+//           const start = new Date(customStart);
+//           start.setDate(customStart.getDate() + i * partSize);
+
+//           const end = new Date(start);
+//           end.setDate(start.getDate() + partSize - 1);
+
+//           buckets.push({
+//             key: i,
+//             period: `${formatShortDate(start)} - ${formatShortDate(end)}`,
+//             cod: 0,
+//             online: 0,
+//           });
+//         }
+//       } else {
+//         for (
+//           let d = new Date(customStart);
+//           d <= customEnd;
+//           d.setDate(d.getDate() + 1)
+//         ) {
+//           buckets.push({
+//             key: formatKey(d),
+//             period: isMultiYear
+//               ? `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`
+//               : `${d.getDate()} ${monthNames[d.getMonth()]}`,
+//             cod: 0,
+//             online: 0,
+//           });
+//         }
+//       }
+//     }
+
+//     /* -------------------------------
+//        Merge Data
+//     ------------------------------- */
+//     stats.forEach((s) => {
+//       let key;
+
+//       if (type === "today") key = s._id.slot;
+//       else if (type === "year") key = s._id.month;
+//       else if (type === "custom" && use12Buckets) key = s._id.bucket;
+//       else key = `${s._id.year}-${s._id.month}-${s._id.day}`;
+
+//       const bucket = buckets.find((b) => b.key === key);
+//       if (!bucket) return;
+
+//       if (s._id.paymentType === "cod") bucket.cod += s.revenue;
+//       else bucket.online += s.revenue;
+//     });
+
+//     /* -------------------------------
+//        Summary
+//     ------------------------------- */
+//     const totalOnline = buckets.reduce((a, b) => a + b.online, 0);
+//     const totalCod = buckets.reduce((a, b) => a + b.cod, 0);
+//     const total = totalOnline + totalCod;
+
+//     return res.json({
+//       success: true,
+//       data: {
+//         summary: {
+//           onlineAmount: totalOnline,
+//           codAmount: totalCod,
+//           onlinePercent: total ? Math.round((totalOnline / total) * 100) : 0,
+//           codPercent: total ? Math.round((totalCod / total) * 100) : 0,
+//         },
+//         timeline: buckets,
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Payment Analytics Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch payment analytics",
+//     });
+//   }
+// };
+
 export const getPaymentAnalytics = async (req, res) => {
   try {
     const merchantId = req.merchant._id;
@@ -1581,21 +2250,35 @@ export const getPaymentAnalytics = async (req, res) => {
       "Dec",
     ];
 
+    // Current date/time in IST
     const now = new Date(
-      new Date().toLocaleString("en-US", { timeZone: IST_TIMEZONE }),
+      new Date().toLocaleString("en-US", {
+        timeZone: IST_TIMEZONE,
+      }),
     );
+
     const formatShortDate = (d) =>
       `${String(d.getDate()).padStart(2, "0")}/${String(
         d.getMonth() + 1,
       ).padStart(2, "0")}/${String(d.getFullYear()).slice(-2)}`;
 
+    const formatKey = (d) =>
+      `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
     const getDaysDiff = (start, end) =>
       Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 
     let dateMatch = {};
-    let customStart, customEnd, totalDays;
+    let customStart;
+    let customEnd;
+    let totalDays;
+
     let use12Buckets = false;
     let isMultiYear = false;
+
+    /* --------------------------------
+       DATE MATCH
+    -------------------------------- */
 
     switch (type) {
       case "today": {
@@ -1605,15 +2288,24 @@ export const getPaymentAnalytics = async (req, res) => {
         const end = new Date(now);
         end.setHours(23, 59, 59, 999);
 
-        dateMatch.createdAt = { $gte: start, $lte: end };
+        dateMatch.createdAt = {
+          $gte: start,
+          $lte: end,
+        };
+
         break;
       }
 
       case "week":
       case "month":
-      case "year":
-        dateMatch = getDateMatch({ type, timezone: IST_TIMEZONE });
+      case "year": {
+        dateMatch = getDateMatch({
+          type,
+          timezone: IST_TIMEZONE,
+        });
+
         break;
+      }
 
       case "custom": {
         if (!fromDate || !toDate) {
@@ -1630,17 +2322,31 @@ export const getPaymentAnalytics = async (req, res) => {
         customEnd.setHours(23, 59, 59, 999);
 
         totalDays = getDaysDiff(customStart, customEnd);
+
         use12Buckets = totalDays > 31;
+
         isMultiYear = customStart.getFullYear() !== customEnd.getFullYear();
 
-        dateMatch.createdAt = { $gte: customStart, $lte: customEnd };
+        dateMatch.createdAt = {
+          $gte: customStart,
+          $lte: customEnd,
+        };
+
         break;
       }
+
+      default:
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid type. Allowed types: today, week, month, year, custom",
+        });
     }
 
-    /* -------------------------------
-       Group By
-    ------------------------------- */
+    /* --------------------------------
+       GROUP BY
+    -------------------------------- */
+
     const getGroupBy = () => {
       switch (type) {
         case "today":
@@ -1648,7 +2354,12 @@ export const getPaymentAnalytics = async (req, res) => {
             slot: {
               $floor: {
                 $divide: [
-                  { $hour: { date: "$createdAt", timezone: IST_TIMEZONE } },
+                  {
+                    $hour: {
+                      date: "$createdAt",
+                      timezone: IST_TIMEZONE,
+                    },
+                  },
                   3,
                 ],
               },
@@ -1658,7 +2369,12 @@ export const getPaymentAnalytics = async (req, res) => {
 
         case "year":
           return {
-            month: { $month: { date: "$createdAt", timezone: IST_TIMEZONE } },
+            month: {
+              $month: {
+                date: "$createdAt",
+                timezone: IST_TIMEZONE,
+              },
+            },
             paymentType: "$paymentType",
           };
 
@@ -1672,7 +2388,9 @@ export const getPaymentAnalytics = async (req, res) => {
                       $divide: [
                         {
                           $subtract: [
-                            { $toLong: "$createdAt" },
+                            {
+                              $toLong: "$createdAt",
+                            },
                             customStart.getTime(),
                           ],
                         },
@@ -1687,23 +2405,65 @@ export const getPaymentAnalytics = async (req, res) => {
             };
           }
 
+          // Custom <= 31 days
+          return {
+            year: {
+              $year: {
+                date: "$createdAt",
+                timezone: IST_TIMEZONE,
+              },
+            },
+            month: {
+              $month: {
+                date: "$createdAt",
+                timezone: IST_TIMEZONE,
+              },
+            },
+            day: {
+              $dayOfMonth: {
+                date: "$createdAt",
+                timezone: IST_TIMEZONE,
+              },
+            },
+            paymentType: "$paymentType",
+          };
+
         default:
           return {
-            year: { $year: { date: "$createdAt", timezone: IST_TIMEZONE } },
-            month: { $month: { date: "$createdAt", timezone: IST_TIMEZONE } },
+            year: {
+              $year: {
+                date: "$createdAt",
+                timezone: IST_TIMEZONE,
+              },
+            },
+            month: {
+              $month: {
+                date: "$createdAt",
+                timezone: IST_TIMEZONE,
+              },
+            },
             day: {
-              $dayOfMonth: { date: "$createdAt", timezone: IST_TIMEZONE },
+              $dayOfMonth: {
+                date: "$createdAt",
+                timezone: IST_TIMEZONE,
+              },
             },
             paymentType: "$paymentType",
           };
       }
     };
 
+    /* --------------------------------
+       DATABASE QUERY
+    -------------------------------- */
+
     const stats = await Order.aggregate([
       {
         $match: {
           merchantId: new mongoose.Types.ObjectId(merchantId),
-          orderStatus: "delivered",
+          orderStatus: {
+            $in: ["delivered", "shipped"],
+          },
           paymentStatus: "paid",
           ...dateMatch,
         },
@@ -1711,17 +2471,22 @@ export const getPaymentAnalytics = async (req, res) => {
       {
         $group: {
           _id: getGroupBy(),
-          revenue: { $sum: "$totalAmount" },
+          revenue: {
+            $sum: "$totalAmount",
+          },
         },
       },
     ]);
 
-    /* -------------------------------
-       Buckets
-    ------------------------------- */
+    /* --------------------------------
+       CREATE BUCKETS
+    -------------------------------- */
+
     const buckets = [];
-    const formatKey = (d) =>
-      `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+    /* --------------------------------
+       TODAY
+    -------------------------------- */
 
     if (type === "today") {
       for (let i = 0; i < 8; i++) {
@@ -1734,35 +2499,59 @@ export const getPaymentAnalytics = async (req, res) => {
       }
     }
 
+    /* --------------------------------
+       WEEK
+    -------------------------------- */
+
     if (type === "week") {
       const start = new Date(now);
+
       start.setDate(now.getDate() - (now.getDay() || 7) + 1);
+
+      start.setHours(0, 0, 0, 0);
 
       for (let i = 0; i < 7; i++) {
         const d = new Date(start);
+
         d.setDate(start.getDate() + i);
 
         buckets.push({
           key: formatKey(d),
-          period: d.toLocaleDateString("en-IN", { weekday: "short" }),
+          period: d.toLocaleDateString("en-IN", {
+            weekday: "short",
+          }),
           cod: 0,
           online: 0,
         });
       }
     }
+
+    /* --------------------------------
+       MONTH
+    -------------------------------- */
 
     if (type === "month") {
       const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
       for (let i = 1; i <= days; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth(), i);
+
         buckets.push({
-          key: i,
+          // IMPORTANT:
+          // Must match MongoDB year-month-day grouping
+          key: formatKey(d),
+
           period: `${i} ${monthNames[now.getMonth()]}`,
+
           cod: 0,
           online: 0,
         });
       }
     }
+
+    /* --------------------------------
+       YEAR
+    -------------------------------- */
 
     if (type === "year") {
       for (let i = 0; i < 12; i++) {
@@ -1775,16 +2564,27 @@ export const getPaymentAnalytics = async (req, res) => {
       }
     }
 
+    /* --------------------------------
+       CUSTOM
+    -------------------------------- */
+
     if (type === "custom") {
       if (use12Buckets) {
         const partSize = Math.ceil(totalDays / 12);
 
         for (let i = 0; i < 12; i++) {
           const start = new Date(customStart);
+
           start.setDate(customStart.getDate() + i * partSize);
 
           const end = new Date(start);
+
           end.setDate(start.getDate() + partSize - 1);
+
+          // Don't go beyond custom end
+          if (end > customEnd) {
+            end.setTime(customEnd.getTime());
+          }
 
           buckets.push({
             key: i,
@@ -1799,11 +2599,19 @@ export const getPaymentAnalytics = async (req, res) => {
           d <= customEnd;
           d.setDate(d.getDate() + 1)
         ) {
+          const currentDate = new Date(d);
+
           buckets.push({
-            key: formatKey(d),
+            key: formatKey(currentDate),
+
             period: isMultiYear
-              ? `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`
-              : `${d.getDate()} ${monthNames[d.getMonth()]}`,
+              ? `${currentDate.getDate()} ${
+                  monthNames[currentDate.getMonth()]
+                } ${currentDate.getFullYear()}`
+              : `${currentDate.getDate()} ${
+                  monthNames[currentDate.getMonth()]
+                }`,
+
             cod: 0,
             online: 0,
           });
@@ -1811,30 +2619,53 @@ export const getPaymentAnalytics = async (req, res) => {
       }
     }
 
-    /* -------------------------------
-       Merge Data
-    ------------------------------- */
+    /* --------------------------------
+       MERGE DATABASE DATA
+    -------------------------------- */
+
     stats.forEach((s) => {
       let key;
 
-      if (type === "today") key = s._id.slot;
-      else if (type === "year") key = s._id.month;
-      else if (type === "custom" && use12Buckets) key = s._id.bucket;
-      else key = `${s._id.year}-${s._id.month}-${s._id.day}`;
+      if (type === "today") {
+        key = s._id.slot;
+      } else if (type === "year") {
+        key = s._id.month;
+      } else if (type === "custom" && use12Buckets) {
+        key = s._id.bucket;
+      } else {
+        key = `${s._id.year}-${s._id.month}-${s._id.day}`;
+      }
 
       const bucket = buckets.find((b) => b.key === key);
+
       if (!bucket) return;
 
-      if (s._id.paymentType === "cod") bucket.cod += s.revenue;
-      else bucket.online += s.revenue;
+      if (s._id.paymentType === "cod") {
+        bucket.cod += Number(s.revenue || 0);
+      } else {
+        bucket.online += Number(s.revenue || 0);
+      }
     });
 
-    /* -------------------------------
-       Summary
-    ------------------------------- */
-    const totalOnline = buckets.reduce((a, b) => a + b.online, 0);
-    const totalCod = buckets.reduce((a, b) => a + b.cod, 0);
+    /* --------------------------------
+       SUMMARY
+    -------------------------------- */
+
+    const totalOnline = buckets.reduce(
+      (total, bucket) => total + Number(bucket.online || 0),
+      0,
+    );
+
+    const totalCod = buckets.reduce(
+      (total, bucket) => total + Number(bucket.cod || 0),
+      0,
+    );
+
     const total = totalOnline + totalCod;
+
+    /* --------------------------------
+       RESPONSE
+    -------------------------------- */
 
     return res.json({
       success: true,
@@ -1842,17 +2673,22 @@ export const getPaymentAnalytics = async (req, res) => {
         summary: {
           onlineAmount: totalOnline,
           codAmount: totalCod,
+
           onlinePercent: total ? Math.round((totalOnline / total) * 100) : 0,
+
           codPercent: total ? Math.round((totalCod / total) * 100) : 0,
         },
+
         timeline: buckets,
       },
     });
   } catch (err) {
     console.error("Payment Analytics Error:", err);
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch payment analytics",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 };
