@@ -43,6 +43,15 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
 * {
   font-family: var(--font-family);
 }
