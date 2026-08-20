@@ -4,9 +4,11 @@ import {
   login,
   logout,
   register,
+  getCustomersList,
 } from "../controllers/userController.js";
 
 import authUser from "../middlewares/authUser.js";
+import authMerchant from "../middlewares/merchantAuth.js";
 import { getCategories } from "../controllers/categoryController.js";
 import {
   getOrdersByUserId,
@@ -32,6 +34,7 @@ import {
   verifyPhoneUpdate,
   resendPhoneUpdateOtp,
 } from "../controllers/userOtpController.js";
+import requirePermission from "../middlewares/requirepermission.js";
 
 const userRouter = express.Router();
 
@@ -62,5 +65,6 @@ userRouter.get("/orders", authUser, getOrdersByUserId);
 userRouter.get("/settings", getMerchantSettings);
 userRouter.get("/home", getHomeData);
 userRouter.get("/payment-config", getPaymentConfigforUser);
+userRouter.get("/list", requirePermission("customer.view"), getCustomersList);
 
 export default userRouter;

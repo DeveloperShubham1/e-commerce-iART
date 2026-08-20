@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Order from "../models/Order.js";
+import mongoose from "mongoose";
 
 // ============================= REGISTER =============================
 export const register = async (req, res) => {
@@ -227,5 +229,140 @@ export const logout = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================= CUSTOMERS LIST =============================
+export const getCustomersList = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const perPage = Math.max(parseInt(req.query.per_page) || 10, 1);
+    const search = (req.query.search || "").trim();
+    const includeGuests = req.query.includeGuests === "true";
+    const merchantId = req.merchant._id;
+
+    const filter = {};
+
+    if (!includeGuests) {
+      filter.isGuest = false;
+    }
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (merchantId) {
+      filter["merchantData.merchantId"] = new mongoose.Types.ObjectId(
+        merchantId,
+      );
+    }
+
+    const totalRecords = await User.countDocuments(filter);
+
+    const users = await User.find(filter)
+      .populate("merchantData.merchantId", "MerchantName email")
+      .populate("cartItems.productId", "name sku brand description variants")
+      .select({
+        name: 1,
+        email: 1,
+        phone: 1,
+        isGuest: 1,
+        createdAt: 1,
+        merchantData: 1,
+        cartItems: 1,
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * perPage)
+      .limit(perPage)
+      .lean();
+
+    const customerIds = users.map((u) => u._id);
+
+    const orderStats = await Order.aggregate([
+      {
+        $match: {
+          userId: {
+            $in: customerIds,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$userId",
+          totalOrders: { $sum: 1 },
+          totalSpent: { $sum: "$amountPaid" },
+          lastOrder: { $max: "$createdAt" },
+        },
+      },
+    ]);
+
+    const statsMap = {};
+
+    orderStats.forEach((item) => {
+      statsMap[item._id.toString()] = item;
+    });
+
+    const data = users.map((user) => {
+      const stats = statsMap[user._id.toString()] || {};
+
+      return {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        isGuest: user.isGuest,
+
+        merchantCount: user.merchantData.length,
+
+        merchant: user.merchantData[0]?.merchantId,
+
+        cartItems: user.cartItems.length,
+
+        // ✅ populated product + variant information
+        cart: user.cartItems.map((item) => ({
+          _id: item._id,
+          productId: item.productId,
+          merchantId: item.merchantId,
+          variantId: item.variantId,
+          size: item.size,
+          quantity: item.quantity,
+          price: item.price,
+          offerPrice: item.offerPrice,
+        })),
+
+        totalOrders: stats.totalOrders || 0,
+
+        totalSpent: stats.totalSpent || 0,
+
+        lastOrder: stats.lastOrder || null,
+
+        createdAt: user.createdAt,
+      };
+    });
+
+    const totalPages = Math.ceil(totalRecords / perPage);
+
+    return res.status(200).json({
+      success: true,
+      customers: data,
+      pagination: {
+        current_page: page,
+        per_page: perPage,
+        total_records: totalRecords,
+        total_pages: totalPages,
+        has_next_page: page < totalPages,
+        has_prev_page: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error("Get customers error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch customers.",
+    });
   }
 };

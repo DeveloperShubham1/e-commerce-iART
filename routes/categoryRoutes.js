@@ -1,5 +1,6 @@
 import express from "express";
 import authMerchant from "../middlewares/merchantAuth.js";
+import requirePermission from "../middlewares/requirepermission.js";
 import {
   addCategory,
   getCategories,
@@ -13,14 +14,18 @@ const router = express.Router();
 
 router.get("/by-category", productsByCategoryId);
 
-router.get("/", authMerchant, getCategories);
+router.get("/", requirePermission("category.view"), getCategories);
 
-router.get("/:id", authMerchant, getCategoryById);
+router.get("/:id", requirePermission("category.view"), getCategoryById);
 
-router.post("/add", authMerchant, addCategory);
+router.post("/add", requirePermission("category.create"), addCategory);
 
-router.put("/update/:id", authMerchant, updateCategory);
+router.put("/update/:id", requirePermission("category.edit"), updateCategory);
 
-router.delete("/delete/:id", authMerchant, deleteCategory);
+router.delete(
+  "/delete/:id",
+  requirePermission("category.delete"),
+  deleteCategory,
+);
 
 export default router;
