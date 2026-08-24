@@ -36,6 +36,10 @@ import {
 } from "../controllers/userOtpController.js";
 import requirePermission from "../middlewares/requirepermission.js";
 
+import {
+  websiteContactUs,
+} from "../controllers/digiShopWebsiteController.js";
+
 const userRouter = express.Router();
 
 // otp route
@@ -67,5 +71,8 @@ userRouter.get("/settings", getMerchantSettings);
 userRouter.get("/home", getHomeData);
 userRouter.get("/payment-config", getPaymentConfigforUser);
 userRouter.get("/list", requirePermission("customer.view"), getCustomersList);
+
+// ********************************************************WEBISTE API*****************************************************************
+userRouter.post("/contact", websiteContactUs);
 
 export default userRouter;
