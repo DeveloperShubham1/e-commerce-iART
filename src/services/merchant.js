@@ -1,7 +1,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { getInstagramConfig, updateInstagramConfig, verifyInstagramToken, syncInstagramComments, syncInstagramAllComments, connectInstagramSDK, getPaymentConfig } from "../api";
+import { getInstagramConfig, updateInstagramConfig, verifyInstagramToken, syncInstagramComments, syncInstagramAllComments, connectInstagramSDK, getPaymentConfig, fetchCustomersByMerchant } from "../api";
 
 
 export const useInstagramConfig = () =>
@@ -100,4 +100,20 @@ export const usePaymentConfig = () => {
         queryFn: getPaymentConfig,
     });
 };
+
+export const useFetchCustomersByMerchant = ({ page, per_page, search }) => {
+    return useQuery({
+        queryKey: ["customers-by-merchant", page, per_page, search],
+        queryFn: () => fetchCustomersByMerchant({ page, per_page, search }),
+        // onSuccess: (data) => {
+        //     toast.success(data.message);
+        // },
+        onError: (err) => {
+            toast.error(err?.response?.data?.message || "Something went wrong");
+        },
+        keepPreviousData: true,
+    });
+};
+
+
 

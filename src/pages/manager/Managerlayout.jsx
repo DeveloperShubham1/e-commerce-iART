@@ -1,99 +1,73 @@
-import { useState, useEffect } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { assets } from "../../assets/assets";
 import { useAppContext } from "../../context/AppContext";
-import { toast } from "react-toastify";
 import reportIcon from "../../assets/reportIcon.svg";
 import instagram from "../../assets/instagram.svg";
 import userGear from "../../assets/user-gear.svg";
 import mLogo from "../../assets/textLogo.png";
-import manageAccess from "../../assets/employee.svg";
-import collectionsIcon from "../../assets/collections.svg"
+import collectionsIcon from "../../assets/collections.svg";
 import customer from "../../assets/customer.svg"
+
 
 import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import Loader from "@/components/Loader";
 
-const SellerLayout = ({ authLoading }) => {
-  const { axios, navigate, setIsMerchant, merchantData } = useAppContext();
+// Must match the role name that gets unrestricted access in MANAGER_ROUTES / the backend Role model.
+const FULL_ACCESS_ROLE = "super_admin";
+
+// Same paths + permission keys as the manager routes inside App.jsx's merged
+// isMerchantBuild block, plus label/icon for the sidebar.
+// permission: null => visible to any logged-in manager, no permission check.
+const NAV_GROUPS = [
+  {
+    label: "Catalog",
+    items: [
+      { name: "Dashboard", path: "/dashboard", icon: assets.add_icon, permission: "product.create" },
+      { name: "Product List", path: "/product-list", icon: assets.product_list_icon, permission: "product.view" },
+      { name: "Categories", path: "/manage-categories", icon: assets.categories_icon, permission: "category.view" },
+      { name: "Sub Categories", path: "/manage-subcategories", icon: assets.sub_categories_icon, permission: "sub_category.view" },
+      { name: "Collections", path: "/collections", icon: collectionsIcon, permission: "collection.view" },
+    ],
+  },
+  {
+    label: "Sales & Customers",
+    items: [
+      { name: "Customers", path: "/customer", icon: customer, permission: "customer.view" },
+      { name: "Orders", path: "/orders", icon: assets.order_icon, permission: "order.view" },
+      { name: "Report", path: "/report", icon: reportIcon, permission: "reports.view" },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      // { name: "Settings", path: "/settings", icon: assets.order_icon, permission: "settings.edit" },
+      //   { name: "Profile", path: "/profile", icon: userGear, permission: null },
+    ],
+  },
+];
+
+const ManagerLayout = ({ authLoading }) => {
+  const { managerData, managerPermissions = [], managerLogout } = useAppContext();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
 
-  useEffect(() => {
-    if (location.pathname === "/" || location.pathname === "") {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [location.pathname, navigate]);
+  const hasPermission = (permission) => {
+    if (!permission) return true;
+    if (managerData?.role?.name === FULL_ACCESS_ROLE) return true;
+    return managerPermissions.includes(permission);
+  };
 
-  const navGroups = [
-    {
-      label: "Catalog",
-      items: [
-        { name: "Add Product", path: "/dashboard", icon: assets.add_icon },
-        {
-          name: "Product List",
-          path: "/product-list",
-          icon: assets.product_list_icon,
-        },
-        {
-          name: "Categories",
-          path: "/manage-categories",
-          icon: assets.categories_icon,
-        },
-        {
-          name: "Sub Categories",
-          path: "/manage-subcategories",
-          icon: assets.sub_categories_icon,
-        },
-        {
-          name: "Instagram Products",
-          path: "/instagram-products",
-          icon: instagram,
-        },
-        {
-          name: "Collections",
-          path: "/collections",
-          icon: collectionsIcon,
-        },
-      ],
-    },
-    {
-      label: "Sales & Customers",
-      items: [
-        { name: "Customer", path: "/customer", icon: customer },
-        { name: "Orders", path: "/orders", icon: assets.order_icon },
-        { name: "Report", path: "/report", icon: reportIcon },
-      ],
-    },
-    {
-      label: "Employee's",
-      items: [
-        { name: "Manage Access", path: "/manage-access", icon: manageAccess },
-      ],
-    },
-    {
-      label: "Account",
-      items: [
-        { name: "Settings", path: "/settings", icon: assets.order_icon },
-        { name: "Profile", path: "/profile", icon: userGear },
-      ],
-    },
-  ];
+  // Filter each group down to items this manager can actually see, then drop empty groups
+  const navGroups = authLoading
+    ? []
+    : NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => hasPermission(item.permission)),
+    })).filter((group) => group.items.length > 0);
 
   const logout = async () => {
-    try {
-      const { data } = await axios.post("/api/merchant/logout");
-      if (data.success) {
-        toast.success(data.message);
-        setIsMerchant(null);
-        navigate("/merchant");
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
+    await managerLogout();
   };
 
   const linkClass = ({ isActive }) =>
@@ -126,28 +100,22 @@ const SellerLayout = ({ authLoading }) => {
           </button>
 
           <Link to="/dashboard" className="flex items-center gap-3">
-            <img
-              src={mLogo}
-              alt="Merchant Logo"
-              className="h-10 w-auto object-contain"
-            />
-
-            {/* <span className="font-semibold text-lg text-gray-800 hidden sm:block">
-              Merchant
-            </span> */}
+            <img src={mLogo} alt="Manager Logo" className="h-10 w-auto object-contain" />
           </Link>
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">
           <div className="hidden sm:flex flex-col items-end leading-tight">
             <p className="text-sm font-medium text-gray-800">
-              {merchantData?.OwnerName || "Merchant"}
+              {managerData?.name || "Manager"}
             </p>
-            <p className="text-xs text-gray-400">Store Owner</p>
+            <p className="text-xs text-gray-400">
+              {managerData?.role?.label || "Manager"}
+            </p>
           </div>
 
           <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm shrink-0">
-            {merchantData?.OwnerName?.charAt(0)?.toUpperCase() || "M"}
+            {managerData?.name?.charAt(0)?.toUpperCase() || "M"}
           </div>
 
           <button
@@ -230,9 +198,7 @@ const SellerLayout = ({ authLoading }) => {
               }`}
           >
             <div className="flex items-center justify-between h-16 px-5 border-b border-gray-100">
-              <span className="font-semibold text-lg text-gray-800">
-                Merchant
-              </span>
+              <span className="font-semibold text-lg text-gray-800">Manager</span>
               <button
                 onClick={() => setMobileOpen(false)}
                 className="p-1 rounded-lg hover:bg-gray-100"
@@ -291,4 +257,4 @@ const SellerLayout = ({ authLoading }) => {
   );
 };
 
-export default SellerLayout;
+export default ManagerLayout;

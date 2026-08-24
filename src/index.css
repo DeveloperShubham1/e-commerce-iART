@@ -59,7 +59,7 @@ body,
 @theme {
   --color-primary: #4fbf8b;
   --color-primary-dull: #44ae7c;
-  --color-primary-bg: #fff;
+  --color-primary-bg: #f1f5f9;
 }
 
 .no-scrollbar::-webkit-scrollbar {

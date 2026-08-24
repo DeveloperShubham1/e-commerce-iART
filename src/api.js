@@ -262,4 +262,71 @@ export const getDashboardData = async (merchantId) => {
     return data;
 };
 
+// manager and role apis
+export const fetchRoles = async () => {
+  const { data } = await axios.get("/api/roles");
+  return data;
+};
+ 
+export const createRole = async (payload) => {
+  const { data } = await axios.post("/api/roles", payload, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+ 
+  return data;
+};
+ 
+export const updateRole = async ({ id, payload }) => {
+  const { data } = await axios.put(`/api/roles/${id}`, payload, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+ 
+  return data;
+};
+
+
+export const fetchManagers = async () => {
+  const { data } = await axios.get("/api/managers");
+  return data;
+};
+ 
+export const createManager = async (payload) => {
+  const { data } = await axios.post("/api/managers", payload, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+ 
+  return data;
+};
+ 
+export const updateManager = async ({ id, payload }) => {
+  const { data } = await axios.put(`/api/managers/${id}`, payload, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+ 
+  return data;
+};
+
+
+export const fetchCustomersByMerchant = async ({ page = 1, per_page = 10, search = "" }) => {
+    const { data } = await axios.get("/api/user/list", {
+        params: {
+            page,
+            per_page,
+            search
+        },
+    });
+    return data;
+};
+
+
+
+
 

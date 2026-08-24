@@ -45,7 +45,10 @@ import CollectionsPage from "./pages/merchant/Collections/CollectionsPage";
 import ProductCollection from "./pages/Productcollection";
 import CartAnimation from "./components/globalLoader/CartAnimation";
 import LoadingCartAnimation from "./components/globalLoader/Loadingcartanimation";
-
+import ManageAccess from "./pages/merchant/Manageaccess";
+import ManagerLayout from "./pages/manager/ManagerLayout";
+import RequirePermission from "./pages/manager/Requirepermission";
+import CustomersPage from "./pages/merchant/Customerspage";
 
 const BUILD_TYPE = import.meta.env.VITE_BUILD_TYPE; // user | merchant
 
@@ -81,7 +84,7 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  const { showUserLogin, isMerchant, authLoading, settings, globalLoader } = useAppContext();
+  const { showUserLogin, isMerchant, isManager, authLoading, settings, globalLoader, isManagerLoading } = useAppContext();
 
   useEffect(() => {
     if (settings?.theme?.primaryColor) {
@@ -127,9 +130,14 @@ const App = () => {
     }
   }, [settings]);
 
-  if (isMerchantBuild && authLoading) {
-    return <Loader />;
-  }
+  const withAccess = (permission, element) =>
+    isMerchant ? element : (
+      <RequirePermission permission={permission}>{element}</RequirePermission>
+    );
+
+  // if (isMerchantBuild && authLoading) {
+  //   return <Loader />;
+  // }
 
   if (globalLoader) {
     return <LoadingCartAnimation />;
@@ -183,28 +191,45 @@ const App = () => {
               </>
             )}
 
-            {/* ================= MERCHANT ROUTES ================= */}
+            {/* ================= MERCHANT + MANAGER ROUTES ================= */}
             {isMerchantBuild && (
               <Route
                 path="/*"
-                element={isMerchant ? <SellerLayout /> : <SellerLogin />}
+                element={
+                  authLoading || isMerchant ? (
+                    <SellerLayout authLoading={authLoading} />
+                  ) : isManagerLoading || isManager ? (
+                    <ManagerLayout authLoading={isManagerLoading} />
+                  ) : (
+                    <SellerLogin />
+                  )
+                }
               >
                 <Route
                   path="dashboard"
-                  element={isMerchant ? <AddProduct /> : null}
+                  element={isMerchant ? <AddProduct /> : withAccess("product.create", <AddProduct />)}
                 />
-                <Route path="manage-categories" element={<CategoryManager />} />
+                <Route
+                  path="manage-categories"
+                  element={withAccess("category.view", <CategoryManager />)}
+                />
                 <Route
                   path="manage-subcategories"
-                  element={<SubcategoryManager />}
+                  element={withAccess("sub_category.view", <SubcategoryManager />)}
                 />
-                <Route path="product-list" element={<ProductList />} />
-                <Route path="orders" element={<Orders />} />
-                <Route path="settings" element={<MerchantSettingsPage />} />
-                <Route path="report" element={<ReportPage />} />
-                <Route path="instagram-products" element={<Instagramproductspage />} />
-                <Route path="profile" element={<ExistProfile />} />
-                <Route path="collections" element={<CollectionsPage />} />
+                <Route path="product-list" element={withAccess("product.view", <ProductList />)} />
+                <Route path="orders" element={withAccess("order.view", <Orders />)} />
+                <Route path="settings" element={withAccess("settings.edit", <MerchantSettingsPage />)} />
+                <Route path="report" element={withAccess("reports.view", <ReportPage />)} />
+                <Route
+                  path="instagram-products"
+                  element={withAccess("product.view", <Instagramproductspage />)}
+                />
+                <Route path="profile" element={withAccess(null, <ExistProfile />)} />
+                <Route path="collections" element={withAccess("collection.view", <CollectionsPage />)} />
+                <Route path="customer" element={withAccess("customer.view", <CustomersPage />)} />
+                {/* Merchant-only — managers never see this regardless of permissions */}
+                <Route path="manage-access" element={isMerchant ? <ManageAccess /> : null} />
                 {/* <Route path="profile" element={<Profile />} /> */}
               </Route>
             )}

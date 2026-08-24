@@ -232,10 +232,9 @@ const ProductList = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto pb-10 bg-gray-50 ">
-      <div className="">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+    <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
+        {/* Sticky Header */}
+        <div className="bg-white shadow-sm p-6 mb-6 flex-shrink-0 z-10 rounded-xl mx-6 mt-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Products</h1>
@@ -265,6 +264,9 @@ const ProductList = () => {
             </div>
           </div>
         </div>
+
+        {/* Scrollable Products Area */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
 
         {/* Products Grid / Table */}
         {initialLoad ? (
@@ -402,7 +404,7 @@ const ProductList = () => {
             </button>
           </div>
         )}
-      </div>
+        </div>{/* end scrollable area */}
 
       {/* Filter Modal */}
       {showFilterModal && (

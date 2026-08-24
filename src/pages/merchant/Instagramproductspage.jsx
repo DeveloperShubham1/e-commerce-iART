@@ -50,7 +50,7 @@ export default function InstagramProductsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+    <div className="flex flex-col min-h-0 max-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -87,7 +87,7 @@ export default function InstagramProductsPage() {
       </div>
 
       {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="flex-1 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
             <div className="w-7 h-7 border-2 border-gray-200 border-t-purple-600 rounded-full animate-spin" />
@@ -193,9 +193,9 @@ export default function InstagramProductsPage() {
               ))}
             </div>
 
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden md:flex flex-col flex-1 overflow-y-auto overflow-x-auto">
               <table className="min-w-[950px] w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr className="bg-gray-800">
                     {["MEDIA ID", "TITLE", "PRODUCT", "URL", "STATUS", "CREATED", "ACTIONS"].map((h) => (
                       <th
@@ -298,7 +298,7 @@ export default function InstagramProductsPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+            <div className="flex-shrink-0 flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-white">
               <span className="text-sm text-gray-500">
                 Page {pagination.current_page} of {pagination.total_pages} —{" "}
                 {pagination.total_records} total

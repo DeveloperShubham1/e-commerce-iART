@@ -1,26 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { Eye, EyeOff, Store, Mail, Lock, ArrowRight, CircleCheck } from "lucide-react";
+import { Eye, EyeOff, Store, Mail, Lock, ArrowRight, CircleCheck, Users } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
 import { toast } from "react-toastify";
 
-/**
- * Design tokens for this page (see inline styles below):
- * ink        #101A30  – brand panel background (deep ledger navy)
- * inkSoft    #1B2C4F  – brand panel gradient end
- * paper      #FAFAF9  – form panel background
- * emerald    #1C8A5D  – primary action / "open for business" accent
- * emeraldSoft #E7F4EC – accent tint (badges, focus fills)
- * slate      #64748B  – secondary text
- * line       #E4E6EA  – borders/dividers
- * amber      #C98A2C  – small highlight accent on the ticket stack
- *
- * Type: "Space Grotesk" for display, "Inter" for body/UI, "IBM Plex Mono"
- * for the ticket-stack figures (an intentional nod to receipt printers).
- */
 
 const SellerLogin = () => {
-  const { isMerchant, setIsMerchant, navigate, axios, setMerchantData } =
+  const { isMerchant,
+    setIsMerchant,
+    isManager,
+    setIsManager,
+    setManagerData,
+    setManagerPermissions,
+    navigate,
+    axios,
+    setMerchantData, } =
     useAppContext();
+
+  const [loginType, setLoginType] = useState("merchant"); // "merchant" | "manager"
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,6 +27,23 @@ const SellerLogin = () => {
     try {
       event.preventDefault();
       setLoading(true);
+
+      if (loginType === "manager") {
+        const { data } = await axios.post("/api/managers/login", {
+          email,
+          password,
+        });
+        if (data.success) {
+          setIsManager(true);
+          setManagerData(data?.manager);
+          setManagerPermissions(data?.permissions || []);
+          console.log("login", data)
+          navigate("/dashboard");
+        } else {
+          toast.error(data.message || "Login failed");
+        }
+        return;
+      }
 
       const { data } = await axios.post("/api/merchant/login", {
         email,
@@ -43,22 +56,20 @@ const SellerLogin = () => {
         navigate("/dashboard");
       }
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Something went wrong"
-      );
+      toast.error(error?.response?.data?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isMerchant) {
-      navigate("/merchant");
+    if (isMerchant || isManager) {
+      navigate("/dashboard");
     }
-  }, [isMerchant]);
+  }, [isMerchant, isManager]);
 
   return (
-    !isMerchant && (
+    !isMerchant && !isManager && (
       <>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
@@ -271,14 +282,44 @@ const SellerLogin = () => {
 
             <div className="sl-card">
               <p className="sl-display text-center text-2xl font-semibold md:text-left" style={{ color: "#101A30" }}>
-                Seller login
+                {loginType === "manager" ? "Manager login" : "Seller login"}
               </p>
               <p className="mt-1.5 text-center text-sm md:text-left" style={{ color: "#64748B" }}>
                 Welcome back — enter your details to continue.
               </p>
 
+              {/* Merchant / Manager tabs */}
+              <div className="mt-5 flex rounded-lg p-1" style={{ backgroundColor: "#F1F3F5" }}>
+                <button
+                  type="button"
+                  onClick={() => setLoginType("merchant")}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: loginType === "merchant" ? "#FFFFFF" : "transparent",
+                    color: loginType === "merchant" ? "#101A30" : "#64748B",
+                    boxShadow: loginType === "merchant" ? "0 1px 2px rgba(16,26,48,0.08)" : "none",
+                  }}
+                >
+                  <Store size={14} />
+                  Merchant
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginType("manager")}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: loginType === "manager" ? "#FFFFFF" : "transparent",
+                    color: loginType === "manager" ? "#101A30" : "#64748B",
+                    boxShadow: loginType === "manager" ? "0 1px 2px rgba(16,26,48,0.08)" : "none",
+                  }}
+                >
+                  <Users size={14} />
+                  Manager
+                </button>
+              </div>
+
               {/* Email */}
-              <div className="mt-6 w-full">
+              <div className="mt-5 w-full">
                 <label
                   htmlFor="sl-email"
                   className="text-xs font-medium"

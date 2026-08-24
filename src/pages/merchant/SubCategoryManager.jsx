@@ -161,7 +161,7 @@ const SubcategoryManager = () => {
   };
 
   return (
-    <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll flex flex-col justify-between">
+    <div className="flex-1 flex flex-col min-h-0 max-h-full">
       <div className="w-full md:p-10 p-4">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4">

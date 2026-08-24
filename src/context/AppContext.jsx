@@ -20,7 +20,7 @@ export const AppContextProvider = ({ children }) => {
   const [settings, getSettings] = useState(null);
   const [cartItems, setCartItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [authLoading, setAuthLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
   const [merchantData, setMerchantData] = useState({});
   const [globalLoader, setGlobalLoader] = useState(false);
 
@@ -31,15 +31,20 @@ export const AppContextProvider = ({ children }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [limit, setLimit] = useState(10);
   const [searchParams, setSearchParams] = useState("");
+  // manager 
 
+  const [isManager, setIsManager] = useState(false);
+  const [managerData, setManagerData] = useState(null);
+  const [managerPermissions, setManagerPermissions] = useState([]);
+  const [isManagerLoading, setIsManagerLoading] = useState(false)
 
   // Get the merchant ID from frontend .env
   const merchantId = import.meta.env.VITE_MERCHANT_ID;
 
   // Fetch Seller Status
-
   const fetchMerchant = async () => {
     try {
+      setAuthLoading(true)
       const { data } = await axios.get("/api/merchant/is-auth");
       if (data.success) {
         setIsMerchant(true);
@@ -52,7 +57,6 @@ export const AppContextProvider = ({ children }) => {
     }
     setAuthLoading(false);
   };
-
   // Update Merchant Password
   const updateMerchantPassword = async (currentPassword, newPassword, confirmPassword) => {
     try {
@@ -79,7 +83,6 @@ export const AppContextProvider = ({ children }) => {
       return { success: false, message };
     }
   };
-
   // Fetch User Auth Status , User Data and Cart Items
   const fetchUser = async () => {
     try {
@@ -92,7 +95,6 @@ export const AppContextProvider = ({ children }) => {
       setUser(null);
     }
   };
-
   // Fetch All Products
   const fetchProducts = async () => {
     try {
@@ -112,7 +114,6 @@ export const AppContextProvider = ({ children }) => {
       toast.error(error.response?.data?.message || error.message);
     }
   };
-
   const fetchSettings = async () => {
     try {
       setGlobalLoader(true);
@@ -131,25 +132,6 @@ export const AppContextProvider = ({ children }) => {
       setGlobalLoader(false);
     }
   };
-
-  // Add Product to Cart
-  // const addToCart = async (productId, variantId, size, quantity = 1) => {
-  //   try {
-  //     const { data } = await axios.post("/api/cart/add", {
-  //       productId,
-  //       variantId,
-  //       size,
-  //       quantity,
-  //     });
-
-  //     if (data?.success) {
-  //       toast.success(data?.message);
-  //       setCartItems(data?.cartItems);
-  //     }
-  //   } catch (error) {
-  //     toast.error(error.response?.data?.message || "Failed to add to cart");
-  //   }
-  // };
 
   const addToCart = async (productId, variantId, size, quantity = 1) => {
     try {
@@ -196,27 +178,6 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
-  // Update Cart Item Quantity
-  // const updateCartItem = async (productId, variantId, size, quantity) => {
-  //   try {
-  //     const { data } = await axios.put("/api/cart/update", {
-  //       productId,
-  //       variantId,
-  //       size,
-  //       quantity,
-  //     });
-
-  //     if (data.success) {
-  //       setCartItems(data.cartItems);
-  //       toast.success("Cart updated");
-  //     } else {
-  //       toast.error(data.message || "Failed to update cart");
-  //     }
-  //   } catch (error) {
-  //     toast.error(error.response?.data?.message || "Failed to update cart");
-  //   }
-  // };
-
   const updateCartItem = async (productId, variantId, size, quantity) => {
     try {
       if (user) {
@@ -257,28 +218,6 @@ export const AppContextProvider = ({ children }) => {
       toast.error(error.response?.data?.message || "Failed to update cart");
     }
   };
-
-  // Remove Product from Cart
-  // const removeFromCart = async (productId, variantId, size) => {
-  //   try {
-  //     const { data } = await axios.delete("/api/cart/remove", {
-  //       data: {
-  //         productId,
-  //         variantId,
-  //         size,
-  //       },
-  //     });
-
-  //     if (data.success) {
-  //       setCartItems(data.cartItems);
-  //       toast.success(data.message || "Item removed from cart");
-  //     } else {
-  //       toast.error(data.message || "Failed to remove item");
-  //     }
-  //   } catch (error) {
-  //     toast.error(error.response?.data?.message || "Failed to remove item");
-  //   }
-  // };
 
   const removeFromCart = async (productId, variantId, size) => {
     try {
@@ -323,7 +262,6 @@ export const AppContextProvider = ({ children }) => {
   const getCartCount = () => {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
-
   // Get Cart Total Amount
   const getCartAmount = () => {
     let total = 0;
@@ -364,6 +302,43 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
+  // Fetch Manager Auth Status
+  const fetchManager = async () => {
+    try {
+      setIsManagerLoading(true);
+      const { data } = await axios.get("/api/managers/is-auth");
+      if (data.success) {
+        setIsManager(true);
+        setManagerData(data?.manager);
+        setManagerPermissions(data?.permissions || []);
+      } else {
+        setIsManager(false);
+      }
+    } catch (error) {
+      setIsManager(false);
+    } finally {
+      setIsManagerLoading(false);
+    }
+  };
+
+
+  // Manager Logout
+  const managerLogout = async () => {
+    try {
+      const { data } = await axios.post("/api/managers/logout");
+
+      if (data.success) {
+        setIsManager(false);
+        setManagerData(null);
+        setManagerPermissions([]);
+        toast.success(data.message || "Logged out successfully");
+        navigate("/merchant");
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message || "Logout failed");
+    }
+  };
+
   useEffect(() => {
     const guestId = localStorage.getItem("guestCartId");
 
@@ -386,6 +361,7 @@ export const AppContextProvider = ({ children }) => {
       }
     }
     fetchMerchant();
+    fetchManager();
   }, []);
 
   // Update Database Cart Items
@@ -421,7 +397,6 @@ export const AppContextProvider = ({ children }) => {
     removeFromCart,
     cartItems,
     searchQuery,
-    authLoading,
     setSearchQuery,
     getCartAmount,
     getCartCount,
@@ -433,7 +408,20 @@ export const AppContextProvider = ({ children }) => {
     merchantData,
     setMerchantData,
     fetchUser,
-    updateMerchantPassword
+    updateMerchantPassword,
+    authLoading,
+    setAuthLoading,
+    // manager
+    isManager,
+    setIsManager,
+    managerData,
+    setManagerData,
+    managerPermissions,
+    setManagerPermissions,
+    managerLogout,
+    fetchManager,
+    isManagerLoading,
+    setIsManagerLoading
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
