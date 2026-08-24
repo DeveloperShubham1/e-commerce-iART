@@ -44,6 +44,7 @@ const MerchantSchema = new mongoose.Schema({
   isSubscribed: { type: Boolean, default: false },
   features: {
     stockManagement: { type: Boolean, default: false },
+    newCustomerManagement: { type: Boolean, default: false },
   },
   subscription: {
     planName: { type: String },

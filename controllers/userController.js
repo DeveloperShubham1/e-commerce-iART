@@ -240,6 +240,7 @@ export const getCustomersList = async (req, res) => {
     const search = (req.query.search || "").trim();
     const includeGuests = req.query.includeGuests === "true";
     const merchantId = req.merchant._id;
+    const merchant = req.merchant;
 
     const filter = {};
 
@@ -259,6 +260,19 @@ export const getCustomersList = async (req, res) => {
       filter["merchantData.merchantId"] = new mongoose.Types.ObjectId(
         merchantId,
       );
+    }
+
+    // Full customer list is only available when the merchant is subscribed
+    // AND has newCustomerManagement enabled. Otherwise, only show customers
+    // who have placed at least one order with this merchant.
+    const canSeeAllCustomers =
+      merchant?.isSubscribed && merchant?.features?.newCustomerManagement;
+
+    if (!canSeeAllCustomers) {
+      const buyerIds = await Order.distinct("userId", {
+        merchantId: new mongoose.Types.ObjectId(merchantId),
+      });
+      filter._id = { $in: buyerIds };
     }
 
     const totalRecords = await User.countDocuments(filter);
@@ -320,19 +334,23 @@ export const getCustomersList = async (req, res) => {
 
         merchant: user.merchantData[0]?.merchantId,
 
-        cartItems: user.cartItems.length,
+        // Cart contents are only exposed to merchants with full customer
+        // access (subscribed + newCustomerManagement). Restricted merchants
+        // get empty cart data even if the user actually has items in cart.
+        cartItems: canSeeAllCustomers ? user.cartItems.length : 0,
 
-        // ✅ populated product + variant information
-        cart: user.cartItems.map((item) => ({
-          _id: item._id,
-          productId: item.productId,
-          merchantId: item.merchantId,
-          variantId: item.variantId,
-          size: item.size,
-          quantity: item.quantity,
-          price: item.price,
-          offerPrice: item.offerPrice,
-        })),
+        cart: canSeeAllCustomers
+          ? user.cartItems.map((item) => ({
+              _id: item._id,
+              productId: item.productId,
+              merchantId: item.merchantId,
+              variantId: item.variantId,
+              size: item.size,
+              quantity: item.quantity,
+              price: item.price,
+              offerPrice: item.offerPrice,
+            }))
+          : [],
 
         totalOrders: stats.totalOrders || 0,
 

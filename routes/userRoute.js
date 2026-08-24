@@ -59,6 +59,7 @@ userRouter.put("/update-profile", authUser, completeGuestProfile);
 //  user action
 userRouter.get("/categories", getCategories);
 userRouter.get("/product/list", productListByUser);
+
 userRouter.post("/order/cod", authUser, placeOrder);
 userRouter.post("/order/upi", authUser, placeUpiOrder);
 userRouter.get("/orders", authUser, getOrdersByUserId);
