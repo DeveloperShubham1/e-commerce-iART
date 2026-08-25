@@ -99,7 +99,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
 
   const handleSaveClick = async () => {
     if (
-      editable.orderStatus === "shipped" &&
+      (editable.orderStatus === "shipped" || editable.orderStatus === "partial_shipped") &&
       (!editable.status || editable.status.trim() === "")
     ) {
       toast.error("Tracking ID is required when order is shipped");
@@ -107,7 +107,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
     }
 
     if (
-      editable.orderStatus === "shipped" &&
+      (editable.orderStatus === "shipped" || editable.orderStatus === "partial_shipped") &&
       (!editable.trackingPartner || editable.trackingPartner.trim() === "")
     ) {
       toast.error("Tracking Partner is required when order is shipped");
@@ -359,6 +359,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
               >
                 <option value="pending">Pending</option>
                 <option value="confirmed">Confirmed</option>
+                <option value="partial_shipped">Partial Shipped</option>
                 <option value="shipped">Shipped</option>
                 <option value="delivered">Delivered</option>
                 <option value="cancelled">Cancelled</option>
@@ -396,7 +397,7 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
 
             {/* Tracking Partner */}
             {(editable.orderStatus === "shipped" ||
-              editable.orderStatus === "delivered") && (
+              editable.orderStatus === "delivered" || editable.orderStatus === "partial_shipped") && (
                 <div>
                   <label className="font-semibold">
                     Tracking Partner
@@ -429,11 +430,11 @@ const UpdateOrderModal = ({ order, onClose, onUpdated, axios, currency }) => {
 
             {/* Status tracking id */}
             {(editable.orderStatus === "shipped" ||
-              editable.orderStatus === "delivered") && (
+              editable.orderStatus === "delivered" || editable.orderStatus === "partial_shipped") && (
                 <div>
                   <label className="font-semibold">
                     Tracking ID
-                    {editable.orderStatus === "shipped" && (
+                    {editable.orderStatus === "shipped" || editable.orderStatus === "partial_shipped" && (
                       <span className="text-red-500 ml-1">*</span>
                     )}
                   </label>

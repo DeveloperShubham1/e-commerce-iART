@@ -3,7 +3,7 @@
 // Fallback keeps things working even if it's not set anywhere yet.
 import { courierPartners } from "../assets/trackingPartners";
 
-const DEFAULT_MERCHANT_NAME ="Your Store";
+const DEFAULT_MERCHANT_NAME = "Your Store";
 
 function getTrackingPartnerLabel(partnerKey) {
   if (!partnerKey) return "N/A";
@@ -43,6 +43,19 @@ export const whatsappTemplates = {
     `Hello ${name},\n\n` +
     `Update on your order ${orderId}!\n\n` +
     `Order Status: *${orderStatus.toUpperCase()}*\n\n` +
+    `Thank you for shopping with us!\n` +
+    `${merchantName}`,
+
+  partialShippedUpdate: ({
+    name,
+    orderId,
+    trackingPartner,
+    trackingId,
+    merchantName = DEFAULT_MERCHANT_NAME,
+  }) =>
+    `Hello ${name},\n\n` +
+    `We’re pleased to inform you that a part of your order ${orderId} has been shipped via ${trackingPartner} and is now on its way to you.\n` +
+    `Tracking ID: ${trackingId}\n\n` +
     `Thank you for shopping with us!\n` +
     `${merchantName}`,
 
@@ -128,6 +141,16 @@ export function buildOrderUpdateMessage({ order, editable, originalOrder, mercha
 
   if (editable.orderStatus === "shipped") {
     return whatsappTemplates.shippedUpdate({
+      name: customerName,
+      orderId,
+      trackingPartner: getTrackingPartnerLabel(editable.trackingPartner),
+      trackingId: editable.trackingId || editable.status || "N/A",
+      merchantName: brand,
+    });
+  }
+
+  if (editable.orderStatus === "partial_shipped") {
+    return whatsappTemplates.partialShippedUpdate({
       name: customerName,
       orderId,
       trackingPartner: getTrackingPartnerLabel(editable.trackingPartner),

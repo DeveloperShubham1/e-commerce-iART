@@ -74,7 +74,9 @@ export default function AddProductVariants() {
   }, [categoryId, axios]);
 
   // Variant & Size handlers
-  const addVariant = () => setVariants([...variants, emptyVariant()]);
+  const addVariant = () => {
+    setVariants((prev) => [emptyVariant(), ...prev]);
+  };
   const removeVariant = (idx) =>
     variants.length > 1 && setVariants(variants.filter((_, i) => i !== idx));
 

@@ -144,13 +144,13 @@ export default function InstagramProductsPage() {
                       />
                     )}
 
-                    <div className="flex-1">
-                      <p className="font-semibold">
-                        {item.product_id?.name}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">
+                        {item.product_id?.name || "Unknown Product"}
                       </p>
 
-                      <p className="text-sm text-gray-500">
-                        {item.title}
+                      <p className="text-sm text-gray-500 truncate">
+                        {item.title || "No variant"}
                       </p>
                     </div>
                   </div>
@@ -219,23 +219,23 @@ export default function InstagramProductsPage() {
 
                       {/* Title */}
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-1.5 text-gray-700">
-                          <Tag size={12} className="text-gray-400" />
-                          {item.title || "—"}
+                        <div className="flex items-center gap-1.5 text-gray-700 min-w-0">
+                          <Tag size={12} className="text-gray-400 shrink-0" />
+                          <span className="truncate max-w-[150px]">{item.title || "—"}</span>
                         </div>
                       </td>
 
                       {/* Product */}
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           {item.product_id?.variants?.[0]?.images?.[0] && (
                             <img
                               src={item.product_id.variants[0].images[0]}
                               alt={item.product_id.name}
-                              className="w-9 h-9 rounded-md object-cover border border-gray-200"
+                              className="w-9 h-9 rounded-md object-cover border border-gray-200 shrink-0"
                             />
                           )}
-                          <span className="text-gray-800 font-medium">
+                          <span className="text-gray-800 font-medium truncate max-w-[200px]">
                             {item.product_id?.name || "—"}
                           </span>
                         </div>

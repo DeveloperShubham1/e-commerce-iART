@@ -13,15 +13,15 @@ const StatusBadge = ({ value }) => {
     cancelled: "bg-red-100 text-red-800",
     confirmed: "bg-blue-100 text-blue-800",
     shipped: "bg-purple-100 text-purple-800",
+    partial_shipped: "bg-pink-100 text-pink-800",
   };
 
   return (
     <span
-      className={`px-2.5 py-1 rounded-full text-xs font-medium uppercase ${
-        map[value?.toLowerCase()] || "bg-gray-100 text-gray-800"
-      }`}
+      className={`px-2.5 py-1 rounded-full text-xs font-medium uppercase ${map[value?.toLowerCase()] || "bg-gray-100 text-gray-800"
+        }`}
     >
-      {value || "unknown"}
+      {value === "partial_shipped" ? "partial shipped" : value || "unknown"}
     </span>
   );
 };
@@ -34,6 +34,7 @@ const StatusFilterTabs = ({ selectedStatus, onChange }) => {
     "Shipped",
     "Delivered",
     "Cancelled",
+    "Partial Shipped",
   ];
 
   return (
@@ -44,11 +45,10 @@ const StatusFilterTabs = ({ selectedStatus, onChange }) => {
           onClick={() =>
             onChange(status === "All" ? null : status.toLowerCase())
           }
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            selectedStatus === (status === "All" ? null : status.toLowerCase())
-              ? "bg-indigo-600 text-white shadow-md"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-200"
-          }`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedStatus === (status === "All" ? null : status.toLowerCase())
+            ? "bg-indigo-600 text-white shadow-md"
+            : "bg-gray-200 text-gray-700 hover:bg-gray-200"
+            }`}
         >
           {status}
         </button>
@@ -182,11 +182,10 @@ const Pagination = ({
           <button
             key={i}
             onClick={() => onPageChange(i + 1)}
-            className={`px-3 py-2 rounded-lg text-sm font-medium ${
-              currentPage === i + 1
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-100 hover:bg-gray-200"
-            }`}
+            className={`px-3 py-2 rounded-lg text-sm font-medium ${currentPage === i + 1
+              ? "bg-indigo-600 text-white"
+              : "bg-gray-100 hover:bg-gray-200"
+              }`}
           >
             {i + 1}
           </button>
@@ -205,10 +204,11 @@ const Pagination = ({
 };
 
 // Desktop Table
+// Desktop Table
 const OrdersTable = ({ orders, onSelectOrder }) => (
-  <div className="hidden lg:block overflow-x-auto">
+  <div className="hidden lg:block overflow-y-auto overflow-x-auto flex-1 min-h-0">
     <table className="w-full min-w-[1000px]">
-      <thead className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
+      <thead className="bg-gradient-to-r from-slate-800 to-slate-900 text-white sticky top-0 z-10">
         <tr>
           {[
             "Order ID",
@@ -239,7 +239,7 @@ const OrdersTable = ({ orders, onSelectOrder }) => (
             <td className="px-6 py-4 font-semibold text-sm">{order.orderId}</td>
             <td className="px-6 py-4">
               <div className="font-semibold text-sm">
-                {order.userId?.name|| order.userId?.phone || "N/A"}
+                {order.userId?.name || order.userId?.phone || "N/A"}
               </div>
               <div className="text-xs text-gray-500">{order.userId?.email}</div>
             </td>
@@ -264,7 +264,7 @@ const OrdersTable = ({ orders, onSelectOrder }) => (
 
 // Mobile Cards
 const OrdersMobileCards = ({ orders, onSelectOrder }) => (
-  <div className="lg:hidden space-y-4">
+  <div className="lg:hidden space-y-4 overflow-y-auto flex-1 min-h-0 p-1">
     {orders.map((order) => (
       <div
         key={order._id}
@@ -469,16 +469,13 @@ const Orders = () => {
   }
 
   return (
-    <div className="p-4 md:p-8 lg:p-10 space-y-8">
+    <div className="p-1 md:p-2 lg:p-3 space-y-5 h-[calc(100vh-100px)] md:h-[calc(100vh-130px)] min-h-[500px] flex flex-col overflow-hidden">
       <div>
         <h1 className="text-3xl font-bold text-gray-800">All Orders</h1>
-        <p className="text-gray-600 mt-1">
-          
-        </p>
       </div>
 
       {/* Filters Section */}
-      <div className="space-y-3">
+      <div className="space-y-1">
         <p>Filter By Status</p>
         <StatusFilterTabs
           selectedStatus={selectedStatus}
@@ -500,7 +497,7 @@ const Orders = () => {
       </div>
 
       {/* Orders Display */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-1 min-h-0 flex flex-col">
         {orders.length === 0 ? (
           <EmptyState onClearFilters={clearFilters} />
         ) : (
